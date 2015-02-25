@@ -1,6 +1,6 @@
 /**
  *  Poker
- *  Author: Arthur Bernard
+ *  Author: Arthur Bernard 2014 & ZHANG Handa + ELMALEK Florian 2015
  *  Description: 
  */
 
@@ -10,7 +10,7 @@ global {
 	/**
 	 * Nombre de joueurs � la table
 	 */
-	int nb_joueurs <- 8 min : 2 max : 10;
+	int nb_joueurs <- 3 min : 2 max : 10;
 	
 	/**
 	 * Argent de d�part pour chaque joueur
@@ -57,13 +57,13 @@ global {
 	/**
 	 * Ajouter ici les parts des diff�rents agents � cr�er
 	 */
-	map partsAgents <- [1::0.0, 2::0.0, 3::0.5, 4::0.5];
+	map partsAgents <- [1::0.3, 2::0.0, 3::0.3, 4::0.0, 5::0.3, 6::0.0];
 	
 	/**
 	 * Map utilis�e pour contrer le fait qu'une map contenant directement des pairs (species::part) ne marche
 	 * pas en param�tres. C'est un peu lourd mais �a permet de faire l'affaire
 	 */
-	map correspondance <- [1::JoueurZISuiveur, 2::JoueurZIAleatoire, 3::JoueurPrudent, 4::JoueurBluffer];
+	map correspondance <- [1::JoueurZISuiveur, 2::JoueurZIAleatoire, 3::JoueurPrudent, 4::JoueurBluffer, 5::JoueurClassifieurSerre, 6::JoueurClassifieurLarge];
 	
 	// ------ Joueurs ZIAl�atoires ------
 	/**
@@ -634,7 +634,7 @@ global {
 					set index <- index + 1;
 				}
 				set etape <- etape + 1;
-				
+				write "" + self + " remporte la manche";
 				do terminer_partie classement : classement;
 			}
 		}
@@ -1882,26 +1882,26 @@ global {
 		}
 
 		let ecart type : int <- 6;
-		let pos_y type : int <- 25;
+		let pos_y type : int <- 50;
 		if(length(cartes_communes) = 3) {
 			let debut type : int <- -36;
 			
 			loop index from : 0 to : length(images) - 1 {
-				draw file("../images/" + images at index) at : my location + {debut + index*36, pos_y} size : 30;
+				draw file("../images/" + images at index) at : my location + {debut + index*66, pos_y} size : 60;
 			}
 		}
 		else if(length(cartes_communes) = 4) {
 			let debut type : int <- -54;
 			
 			loop index from : 0 to : length(images) - 1 {
-				draw file( "../images/" + images at index) at : my location + {debut + index*36, pos_y} size : 30;
+				draw file( "../images/" + images at index) at : my location + {debut + index*66, pos_y} size : 60;
 			}
 		}
 		else if(length(cartes_communes) = 5) {
 			let debut type : int <- -72;
 			
 			loop index from : 0 to : length(images) - 1 {
-				draw file("../images/" + images at index) at : my location + {debut + index*36, pos_y} size : 30;
+				draw file("../images/" + images at index) at : my location + {debut + index*66, pos_y} size : 60;
 			}
 		}
 		else {
@@ -1909,7 +1909,7 @@ global {
 			let debut type : int <- -36;
 			
 			loop index from : 0 to : 2 {
-				draw file( "../images/155.png") at : my location + {debut + index*36, pos_y} size : 30;
+				draw file( "../images/155.png") at : my location + {debut + index*36, pos_y} size : 60;
 			}
 		}
 	}
@@ -1934,7 +1934,7 @@ entities {
 		 * La mise du joueur pour ce tour
 		 */
 		int mise <- 0;
-		
+		int miseCourante <- 0;
 		/**
 		 * Somme d'argent que poss�de l'agent.
 		 */
@@ -2034,11 +2034,13 @@ entities {
 				let val_max type : int <- argent;
 				set argent <- 0;
 				set mise <- mise + val_max;
+				set miseCourante <- mise;
 				return val_max;
 			}
 			else {
 				set argent <- argent - valeur;
 				set mise <- mise + valeur;
+				set miseCourante <- mise;
 				
 				if(argent = 0) {
 					set tapis <- true;
@@ -2086,6 +2088,12 @@ entities {
 				
 				ask world {
 					do valider_mise with : [mise :: valeur, valeur_supp :: valeurSupp];
+				}
+				if(valeur = 0 and self.out = false){
+					write "" + self + " check";
+				}
+				else{
+					write "" + self + " mise " + valeur;
 				}
 				
 				do rendre_jeton;
@@ -2219,8 +2227,8 @@ entities {
 				let carte1 type : string <- string(cartes_images[main1] ) + ".png";
 				let carte2 type : string <- string(cartes_images[main2]) + ".png";
 	
-				draw file("../images/" + carte1) at : my location + {-18, 30} size : 30;
-				draw file("../images/" + carte2) at : my location + {18, 30} size : 30;
+				draw file("../images/" + carte1) at : my location + {-18, 55}size : 60;
+				draw file("../images/" + carte2) at : my location + {18, 55}size : 60;
 			}
 		}
 	}
@@ -2246,7 +2254,7 @@ entities {
 	
 	
 	/**
-	 * Agents ZIAleatoires. Ces agents jouent totalement al�atoirement selon des probabilit�s d�finies par
+	 * Agent ZIAleatoires. Ces agents jouent totalement al�atoirement selon des probabilit�s d�finies par
 	 * les param�tres de la simulation. Ils ont donc une probabilit� de se coucher, de suivre ou de relancer.
 	 * Il est � noter qu'il leur est possible de faire tapis dans le cas o� le fait de suivre ou de relancer am�ne
 	 * leur argent � 0. Ceci n'est donc pas r�ellement un choix d'action.
@@ -2438,6 +2446,7 @@ entities {
 	
 	
 	species JoueurBluffer parent : Joueur {
+
 		/**
 		 * Force de la main utilis�e lors du calcule de la valeur de relance
 		 */
@@ -2642,6 +2651,112 @@ entities {
 										
 			return confiance;
 		}
+	}
+
+	/**
+	 * Le JoueurClassifieurSerre décide de l'action qu'il va faire en fonction de sa main. De plus, comme son nom l'indique, c'est un joueur qui va jouer "serré". 
+	 * Sans passer par un quelconque calcul de probabilités il possède une règle pour chaque main.
+	 * Ces règles sont détaillées dans le rapport et sont le résultat de la "fusion" de nombreuses stratégies recommandées.
+	 */
+	species JoueurClassifieurSerre parent : Joueur{		
+		float force <- 0;	
+		
+		reflex choisir_action when: jeton {
+			
+			//ce comportement se joue énormément au pré flop
+			do meilleure_combinaison;
+			if(etape = 0){
+				if( type_meilleure_combinaison = 1) {
+					write "paire, mise : " + (mise - self.mise);
+					do miser valeur : mise - self.mise;
+				}
+				else{
+					//si on est big blind et qu'il n'y a pas eu de relance, on check
+					if(self.big_blind and mise = blind){
+						do miser valeur : 0;
+					}
+					else{
+						do meilleure_combinaison;
+						let main_tmp type : list of : int <- copy(meilleure_combinaison);	
+						loop index from : 0 to : length(main_tmp) - 1 {
+							let couleur type : int <- floor((main_tmp at index)/100)*100;
+							put (main_tmp at index) - couleur at : index in : main_tmp;
+							
+							// cas particulier, l'as
+							if(main_tmp at index = 1) {
+								put 14 at : index in : main_tmp;
+							}
+						force <- force + (main_tmp at index);
+						}
+						//Si on a une main suffisamment bonne	
+						if (force >= 23){
+							//S'il y a déjà eu des mises, et qu'on a assez d'argent on suit
+							if((miseGlobale - self.mise) <= argent) {
+								do miser valeur : (miseGlobale - self.mise);
+								miseCourante <- (miseGlobale - self.mise);
+							}
+							//S'il y a déjà eu des mises et qu'on doit faire tapis
+							else if((miseGlobale - self.mise) >= argent)  {
+								do miser valeur : argent;
+								self.tapis <- true;
+							}
+							//S'il n'y a pas eu de mise, on check
+							else{
+								do miser valeur : 0;
+							}
+						}
+						//Main insuffisante, on se couche
+						else{
+							do se_coucher;
+						}
+					}				
+				}
+			}
+			//flop
+			if(etape > 0){
+				miseCourante <- 0;
+				do meilleure_combinaison;
+				if( type_meilleure_combinaison >= 1){
+					if(mise - self.mise > 0){
+						do miser valeur : mise - self.mise;
+						miseCourante <- mise - self.mise;
+					}
+					else{
+						do miser valeur : 0;
+					}
+				}
+				else{
+					do se_coucher;
+				}
+			}			
+		}
+	}
+	/**
+	 * Le JoueurClassifieur2 décide de l'action qu'il va faire en fonction de sa main. De plus, comme son nom l'indique, c'est un joueur qui va jouer "large"!
+	 * Sans passer par un quelconque calcul de probabilités il possède une règle pour chaque main.
+	 * Ces règles sont détaillées dans le rapport et sont le résultat de la "fusion" de nombreuses stratégies recommandées 
+	 */
+	species JoueurClassifieurLarge parent : Joueur{
+		reflex choisir_action when: jeton {
+			if(type_meilleure_combinaison = -1) {
+				do meilleure_combinaison;
+			}
+		}
+	}
+	/**
+	 * Le JoueurClassifieurPosition décide de l'action qu'il va faire en fonction de sa main mais également en fonction de sa place à la table ! 
+	 * Sans passer par un quelconque calcul de probabilités il possède une règle pour chaque main.
+	 * Ces règles sont détaillées dans le rapport et sont le résultat de la "fusion" de nombreuses stratégies recommandées 
+	 */
+	species JoueurClassifieurPosition parent : Joueur{
+		reflex choisir_action when: jeton {
+			if(type_meilleure_combinaison = -1) {
+				do meilleure_combinaison;
+			}
+		}
+	}
+	species JoueurApprentissage parent : Joueur{
+		
 	}
 }
 
