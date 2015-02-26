@@ -10,7 +10,7 @@ global {
 	/**
 	 * Nombre de joueurs � la table
 	 */
-	int nb_joueurs <- 4 min : 2 max : 10;
+	int nb_joueurs <- 6 min : 2 max : 10;
 	
 	/**
 	 * Argent de d�part pour chaque joueur
@@ -57,7 +57,7 @@ global {
 	/**
 	 * Ajouter ici les parts des diff�rents agents � cr�er
 	 */
-	map partsAgents <- [1::0.25, 2::0.0, 3::0.25, 4::0.0, 5::0.25, 6::0.25];
+	map partsAgents <- [1::0.1, 2::0.1, 3::0.1, 4::0.1, 5::0.1, 6::0.1];
 	
 	/**
 	 * Map utilis�e pour contrer le fait qu'une map contenant directement des pairs (species::part) ne marche
@@ -2839,20 +2839,36 @@ entities {
 						
 						//Si on a une main suffisamment bonne	
 						write "main " + main_tmp + " force : " + force;
-						if ((tete and force >= 16) or( force >= 23)){
-							//S'il y a déjà eu des mises, et qu'on a assez d'argent on suit
+						if ((tete and force >= 16) or ( force >= 23)){
+							//S'il y a déjà eu des mises, et qu'on a assez d'argent
 							if((miseGlobale - self.mise) > 0 and (miseGlobale - self.mise)  < argent) {
-								do miser valeur : (miseGlobale - self.mise);
-								miseCourante <- (miseGlobale - self.mise);
+								if(miseGlobale > blind and force < 25){
+									do se_coucher;
+								}
+								else{
+									if((miseGlobale - self.mise) = blind and force >= 24){
+										do miser valeur : 3 * blind;
+									}
+									else{
+										do miser valeur : miseGlobale - self.mise;
+									}
+										
+								}								
 							}
 							//S'il y a déjà eu des mises et qu'on doit faire tapis
 							else if(((miseGlobale - self.mise) > 0) and (miseGlobale - self.mise) >= argent)  {
 								do miser valeur : argent;
 								self.tapis <- true;
 							}
-							//S'il n'y a pas eu de mise, on check
+							//S'il n'y a pas eu de mise, depend de notre main
 							else{
-								do miser valeur : 0;
+								if(force >= 25){
+									do miser valeur : 3*blind;
+								}
+								else{
+									do miser valeur : 0;	
+								}
+								
 							}
 						}
 						//Main insuffisante, on se couche
@@ -2911,9 +2927,7 @@ entities {
 	 */
 	species JoueurClassifieurPosition parent : Joueur{
 		reflex choisir_action when: jeton {
-			if(type_meilleure_combinaison = -1) {
-				do meilleure_combinaison;
-			}
+			
 		}
 	}
 	species JoueurApprentissage parent : Joueur{
