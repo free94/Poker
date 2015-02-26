@@ -590,9 +590,13 @@ global {
 				// Les joueurs sont les cl�s, leur classement les valeurs
 				let classement type : list <- [];			
 				let index type : int <- 0;
+				//pour tous les joueurs
 				loop while : index < length(joueurs) {
+					//non couchés
 					if(!(joueurs at index).couche) {
+						//si meilleur_joueur n'est pas initialisé
 						if(meilleur_joueur = -1) {
+							//on le fixe au premier joueur
 							set meilleur_joueur <- index;
 							let liste type : list of : int <- [];
 							add index to : liste;
@@ -634,7 +638,7 @@ global {
 					set index <- index + 1;
 				}
 				set etape <- etape + 1;
-				write "" + self + " remporte la manche";
+				write "" + joueurs at ((classement[0]) at 0) + " remporte la manche";
 				do terminer_partie classement : classement;
 			}
 		}
@@ -1694,17 +1698,20 @@ global {
 				// Sinon on consid�re qu'il se couche et on prend
 				// sa mise parce que c'est pas bien de tricher
 				set (joueurs at joueur_courant).couche <- true;
+				write "* "+ joueurs at joueur_courant + " se couche";
 			} 
-			
-			set pot <- pot + mise;
-			
-			if(valeur_supp > 0 and !(joueurs at joueur_courant).couche) {
-				set miseGlobale <- miseGlobale + valeur_supp;
-				set no_raise <- false;
+			else{
+				set pot <- pot + mise;
 				
-				// Ce joueur devient le nouveau "premier joueur"
-				set premier_joueur <- joueur_courant;
-			}	
+				if(valeur_supp > 0 and !(joueurs at joueur_courant).couche) {
+					set miseGlobale <- miseGlobale + valeur_supp;
+					set no_raise <- false;
+					
+					// Ce joueur devient le nouveau "premier joueur"
+					set premier_joueur <- joueur_courant;
+				}	
+				
+			}
 		}
 		
 		if(mise = -1) {
@@ -1725,6 +1732,7 @@ global {
 				set premier_joueur <- joueur_suiv;
 				set pas_de_tour <- true;
 			}
+			write "" + joueurs at joueur_courant + " se couche";
 		}
 		
 		// Si jamais tout le monde s'est couch� sauf un joueur
@@ -1832,7 +1840,7 @@ global {
 		
 		// On supprime le joueur de la liste
 		remove joueur from : joueurs;
-		
+		write "" + joueur + " a perdu";
 		// On regarde s'il ne reste pas qu'un joueur en jeu
 		if(length(joueurs) <= 1) {
 			if(length(joueurs) > 0) {
@@ -2056,11 +2064,12 @@ entities {
 		 */
 		action miser {
 			arg valeur type : int;
-			
+			//Si joueur tente de miser + que son tapis
 			if(argent - valeur < 0) {
 				// On n'a pas le droit de miser plus qu'on a
 				do se_coucher;
 			}
+			//Sinon
 			else {
 				let valeurSupp type : int <- 0;
 				if((mise + valeur) > miseGlobale) {
@@ -2563,7 +2572,7 @@ entities {
 			if(argent = 0) {
 				set out <- true;
 				ask world {
-					do valider_out joueur : myself;
+					do valider_out joueur : myself;					
 				}
 			}
 			
@@ -2666,16 +2675,23 @@ entities {
 			//ce comportement se joue énormément au pré flop
 			do meilleure_combinaison;
 			if(etape = 0){
+				//SI ON A UNE PAIRE SERVIE
 				if( type_meilleure_combinaison = 1) {
-					write "paire, mise : " + (mise - self.mise);
-					do miser valeur : mise - self.mise;
+					//on cherche à maximiser les gains sur cette très bonne main : relance
+					if(miseGlobale - self.mise >= 3*blind ){
+						do miser valeur : miseGlobale - self.mise;
+					}
+					else{
+						do miser valeur : 3*blind;
+					}
 				}
 				else{
 					//si on est big blind et qu'il n'y a pas eu de relance, on check
-					if(self.big_blind and mise = blind){
-						do miser valeur : 0;
+					if(self.big_blind and miseGlobale = blind){
+						do miser valeur : (miseGlobale - self.mise);
 					}
 					else{
+						bool ass <- false;
 						do meilleure_combinaison;
 						let main_tmp type : list of : int <- copy(meilleure_combinaison);	
 						loop index from : 0 to : length(main_tmp) - 1 {
@@ -2685,11 +2701,12 @@ entities {
 							// cas particulier, l'as
 							if(main_tmp at index = 1) {
 								put 14 at : index in : main_tmp;
+								ass <- true;
 							}
-						force <- force + (main_tmp at index);
+							force <- force + (main_tmp at index);
 						}
 						//Si on a une main suffisamment bonne	
-						if (force >= 23){
+						if ((!ass and force >= 23) or (ass and force >= 25)){
 							//S'il y a déjà eu des mises, et qu'on a assez d'argent on suit
 							if((miseGlobale - self.mise) <= argent) {
 								do miser valeur : (miseGlobale - self.mise);
@@ -2712,7 +2729,7 @@ entities {
 					}				
 				}
 			}
-			//flop
+			//post flop
 			if(etape > 0){
 				miseCourante <- 0;
 				do meilleure_combinaison;
@@ -2726,7 +2743,14 @@ entities {
 					}
 				}
 				else{
-					do se_coucher;
+					if((miseGlobale - self.mise) = 0){
+						write "//////";
+						do miser valeur : 0;
+					}
+					else{
+						write "";
+						do se_coucher;
+					}					
 				}
 			}			
 		}
