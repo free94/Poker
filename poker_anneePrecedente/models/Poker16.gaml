@@ -2782,6 +2782,7 @@ entities {
 		reflex choisir_action when: jeton {
 			float force <- 0;
 			bool ass <- false;
+			bool tete <- false;
 			//ce comportement se joue énormément au pré flop
 			do meilleure_combinaison;
 			if(etape = 0){
@@ -2814,11 +2815,31 @@ entities {
 								put 14 at : index in : main_tmp;
 								ass <- true;
 							}
+							if(main_tmp at index >= 11){
+								tete <- true;
+							}
 							force <- force + (main_tmp at index);
 						}
+						
+						//certaines combinaisons bien que faibles en valeur, peuvent être tentées car de même couleur
+						
+						let liste type : list of : int <- main as list;
+						
+						let old_color type : int <- floor((liste at 0)/100);
+						let flush type : bool <- true;
+						let color type : int <- floor((liste at 1)/100);
+							
+						if(color != old_color) {
+							set flush <- false;
+						}
+						//si même couleur et une des mains suivantes go
+						if(flush = true and (main contains {4,7} or main contains {7,4} or main contains {5,7} or main contains {7,5} or main contains {6,5} or main contains {5,6}) ){
+							force <- 23;
+						}
+						
 						//Si on a une main suffisamment bonne	
 						write "main " + main_tmp + " force : " + force;
-						if (force >= 16){
+						if ((tete and force >= 16) or( force >= 23)){
 							//S'il y a déjà eu des mises, et qu'on a assez d'argent on suit
 							if((miseGlobale - self.mise) > 0 and (miseGlobale - self.mise)  < argent) {
 								do miser valeur : (miseGlobale - self.mise);
