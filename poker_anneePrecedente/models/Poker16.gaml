@@ -10,7 +10,7 @@ global {
 	/**
 	 * Nombre de joueurs � la table
 	 */
-	int nb_joueurs <- 3 min : 2 max : 10;
+	int nb_joueurs <- 4 min : 2 max : 10;
 	
 	/**
 	 * Argent de d�part pour chaque joueur
@@ -57,7 +57,7 @@ global {
 	/**
 	 * Ajouter ici les parts des diff�rents agents � cr�er
 	 */
-	map partsAgents <- [1::0.3, 2::0.0, 3::0.3, 4::0.0, 5::0.3, 6::0.0];
+	map partsAgents <- [1::0.25, 2::0.0, 3::0.25, 4::0.0, 5::0.25, 6::0.25];
 	
 	/**
 	 * Map utilis�e pour contrer le fait qu'une map contenant directement des pairs (species::part) ne marche
@@ -2668,10 +2668,10 @@ entities {
 	 * Ces règles sont détaillées dans le rapport et sont le résultat de la "fusion" de nombreuses stratégies recommandées.
 	 */
 	species JoueurClassifieurSerre parent : Joueur{		
-		float force <- 0;	
-		
+				
 		reflex choisir_action when: jeton {
-			
+			float force <- 0;
+			bool ass <- false;
 			//ce comportement se joue énormément au pré flop
 			do meilleure_combinaison;
 			if(etape = 0){
@@ -2688,10 +2688,11 @@ entities {
 				else{
 					//si on est big blind et qu'il n'y a pas eu de relance, on check
 					if(self.big_blind and miseGlobale = blind){
-						do miser valeur : (miseGlobale - self.mise);
+						write "big blind";
+						do miser valeur : 0;
 					}
 					else{
-						bool ass <- false;
+						ass <- false;
 						do meilleure_combinaison;
 						let main_tmp type : list of : int <- copy(meilleure_combinaison);	
 						loop index from : 0 to : length(main_tmp) - 1 {
@@ -2706,14 +2707,15 @@ entities {
 							force <- force + (main_tmp at index);
 						}
 						//Si on a une main suffisamment bonne	
+						write "main " + main_tmp + " force : " + force;
 						if ((!ass and force >= 23) or (ass and force >= 25)){
 							//S'il y a déjà eu des mises, et qu'on a assez d'argent on suit
-							if((miseGlobale - self.mise) <= argent) {
+							if((miseGlobale - self.mise) > 0 and (miseGlobale - self.mise)  < argent) {
 								do miser valeur : (miseGlobale - self.mise);
 								miseCourante <- (miseGlobale - self.mise);
 							}
 							//S'il y a déjà eu des mises et qu'on doit faire tapis
-							else if((miseGlobale - self.mise) >= argent)  {
+							else if(((miseGlobale - self.mise) > 0) and (miseGlobale - self.mise) >= argent)  {
 								do miser valeur : argent;
 								self.tapis <- true;
 							}
@@ -2733,22 +2735,38 @@ entities {
 			if(etape > 0){
 				miseCourante <- 0;
 				do meilleure_combinaison;
+				//Si on a au moins une paire on reste
 				if( type_meilleure_combinaison >= 1){
-					if(mise - self.mise > 0){
-						do miser valeur : mise - self.mise;
-						miseCourante <- mise - self.mise;
+					//S'il y a déjà eu des mises ATTENTION
+					if(miseGlobale - self.mise > 0){
+						//On reste uniquement si on a mieux qu'une paire
+						if( type_meilleure_combinaison > 1){
+							write "suit avec mieux qu'une paire";
+							do miser valeur : mise - self.mise;
+						}
+						//Sinon on se couche
+						else{
+							do se_coucher;
+						}
 					}
+					//S'il n'y a pas eu encore de mise
 					else{
-						do miser valeur : 0;
+						//Mise si mieux qu'une paire
+						if(type_meilleure_combinaison > 1){
+							write "on mise car mieux qu'une paire";
+							do miser valeur : 3*blind;
+						}
+						//Check sinon
+						else{
+							do miser valeur : 0;
+						}
 					}
 				}
 				else{
 					if((miseGlobale - self.mise) = 0){
-						write "//////";
 						do miser valeur : 0;
 					}
 					else{
-						write "";
 						do se_coucher;
 					}					
 				}
@@ -2762,9 +2780,107 @@ entities {
 	 */
 	species JoueurClassifieurLarge parent : Joueur{
 		reflex choisir_action when: jeton {
-			if(type_meilleure_combinaison = -1) {
-				do meilleure_combinaison;
+			float force <- 0;
+			bool ass <- false;
+			//ce comportement se joue énormément au pré flop
+			do meilleure_combinaison;
+			if(etape = 0){
+				//SI ON A UNE PAIRE SERVIE
+				if( type_meilleure_combinaison = 1) {
+					//on cherche à maximiser les gains sur cette très bonne main : relance
+					if(miseGlobale - self.mise >= 3*blind ){
+						do miser valeur : miseGlobale - self.mise;
+					}
+					else{
+						do miser valeur : 3*blind;
+					}
+				}
+				else{
+					//si on est big blind et qu'il n'y a pas eu de relance, on check
+					if(self.big_blind and miseGlobale = blind){
+						write "big blind";
+						do miser valeur : 0;
+					}
+					else{
+						ass <- false;
+						do meilleure_combinaison;
+						let main_tmp type : list of : int <- copy(meilleure_combinaison);	
+						loop index from : 0 to : length(main_tmp) - 1 {
+							let couleur type : int <- floor((main_tmp at index)/100)*100;
+							put (main_tmp at index) - couleur at : index in : main_tmp;
+							
+							// cas particulier, l'as
+							if(main_tmp at index = 1) {
+								put 14 at : index in : main_tmp;
+								ass <- true;
+							}
+							force <- force + (main_tmp at index);
+						}
+						//Si on a une main suffisamment bonne	
+						write "main " + main_tmp + " force : " + force;
+						if (force >= 16){
+							//S'il y a déjà eu des mises, et qu'on a assez d'argent on suit
+							if((miseGlobale - self.mise) > 0 and (miseGlobale - self.mise)  < argent) {
+								do miser valeur : (miseGlobale - self.mise);
+								miseCourante <- (miseGlobale - self.mise);
+							}
+							//S'il y a déjà eu des mises et qu'on doit faire tapis
+							else if(((miseGlobale - self.mise) > 0) and (miseGlobale - self.mise) >= argent)  {
+								do miser valeur : argent;
+								self.tapis <- true;
+							}
+							//S'il n'y a pas eu de mise, on check
+							else{
+								do miser valeur : 0;
+							}
+						}
+						//Main insuffisante, on se couche
+						else{
+							do se_coucher;
+						}
+					}				
+				}
 			}
+			//post flop
+			if(etape > 0){
+				miseCourante <- 0;
+				do meilleure_combinaison;
+				//Si on a au moins une paire on reste
+				if( type_meilleure_combinaison >= 1){
+					//S'il y a déjà eu des mises ATTENTION
+					if(miseGlobale - self.mise > 0){
+						//On reste uniquement si on a mieux qu'une paire
+						if( type_meilleure_combinaison > 1){
+							write "suit avec mieux qu'une paire";
+							do miser valeur : mise - self.mise;
+						}
+						//Sinon on se couche
+						else{
+							do se_coucher;
+						}
+					}
+					//S'il n'y a pas eu encore de mise
+					else{
+						//Mise si mieux qu'une paire
+						if(type_meilleure_combinaison > 1){
+							write "on mise car mieux qu'une paire";
+							do miser valeur : 3*blind;
+						}
+						//Check sinon
+						else{
+							do miser valeur : 0;
+						}
+					}
+				}
+				else{
+					if((miseGlobale - self.mise) = 0){
+						do miser valeur : 0;
+					}
+					else{
+						do se_coucher;
+					}					
+				}
+			}			
 		}
 	}
 	/**
