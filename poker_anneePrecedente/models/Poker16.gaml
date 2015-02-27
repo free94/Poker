@@ -10,7 +10,7 @@ global {
 	/**
 	 * Nombre de joueurs � la table
 	 */
-	int nb_joueurs <- 6 min : 2 max : 10;
+	int nb_joueurs <- 5 min : 2 max : 10;
 	
 	/**
 	 * Argent de d�part pour chaque joueur
@@ -57,13 +57,13 @@ global {
 	/**
 	 * Ajouter ici les parts des diff�rents agents � cr�er
 	 */
-	map partsAgents <- [1::0.1, 2::0.1, 3::0.1, 4::0.1, 5::0.1, 6::0.1];
+	map partsAgents <- [1::0.0, 2::0.0, 3::0.1, 4::0.1, 5::0.1, 6::0.1, 7::0.1];
 	
 	/**
 	 * Map utilis�e pour contrer le fait qu'une map contenant directement des pairs (species::part) ne marche
 	 * pas en param�tres. C'est un peu lourd mais �a permet de faire l'affaire
 	 */
-	map correspondance <- [1::JoueurZISuiveur, 2::JoueurZIAleatoire, 3::JoueurPrudent, 4::JoueurBluffer, 5::JoueurClassifieurSerre, 6::JoueurClassifieurLarge];
+	map correspondance <- [1::JoueurZISuiveur, 2::JoueurZIAleatoire, 3::JoueurPrudent, 4::JoueurBluffer, 5::JoueurClassifieurSerre, 6::JoueurClassifieurLarge, 7::JoueurClassifieurPosition];
 	
 	// ------ Joueurs ZIAl�atoires ------
 	/**
@@ -214,6 +214,7 @@ global {
 	init {
 		// Ajouter ici la cr�ation des diff�rents agents
 		loop pair over : partsAgents.pairs {
+			
 			int nbAgents <- round(float(pair.value) * nb_joueurs);
 			let agents type : list <- [];
 			create species(correspondance at pair.key) number : nbAgents returns : agents;
@@ -222,7 +223,7 @@ global {
 				add joueur to : joueurs;
 			}
 		}
-				
+		write "nb_joueurs = " + nb_joueurs + "joueurs : " + joueurs;		
 		// Combler ici pour qu'on ait bien nb_joueurs (si jamais les floors malheureux
 		// ont cr�� moins de joueurs). Il est bien �vident pr�f�rable de s'arranger pour
 		// que �a n'arrive pas
@@ -2013,6 +2014,10 @@ entities {
 		bool jeton <- false;
 		
 		/**
+		 * Position à la table : dealer small big mp1 mp2 hi jack cut off
+		 */
+		int position <- -1;
+		/**
 		 * R�flex de base du joueur permettant de choisir son action (sa mise) �
 		 * chacun de ses tours
 		 */
@@ -2020,8 +2025,93 @@ entities {
 		{
 			
 		}
-
-		
+		/**
+		 * 0 dealer
+		 * 1 Small blind
+		 * 2 Big blind
+		 * 3 MP1 ou MP2 = les deux après la big blind, sous entendu ceux qui jouent "au milieu"
+		 * 4 Hi-jack = 2 avant dernier = 2 avant dealer
+		 * 5 Cut-off = dernier avant le dealer
+		 * 
+		 * Si au plus 3 joueurs on a le dealer le hi jack et le cut off  
+		 */
+		action maPosition {
+			if(dealer){
+				return 0;
+			}
+			else if(length(joueurs) = 2 and !dealer){
+				return 5;	
+			}
+			else if(length(joueurs) = 3){
+				if(self.small_blind){				
+					return 4;
+				}
+				return 5;	
+			}
+			else if(length(joueurs) = 4){
+				if(self.small_blind){				
+					return 3;
+				}
+				else if(self.big_blind){				
+					return 4;
+				}				
+				return 5;	
+			}			
+			else if(length(joueurs) = 5){
+				if(self.small_blind){				
+					return 1;
+				}
+				else if(self.big_blind){				
+					return 2;
+				}
+				else if(self = joueurs at ((length(joueurs)) -1)){
+					return 5;
+				}
+				else{
+					return 4;
+				}
+			}
+			//plus de 5 joueurs
+			else{
+				if(self.small_blind){				
+					return 1;
+				}
+				else if(self.big_blind){				
+					return 2;
+				}
+				else if(self = joueurs at ((length(joueurs)) -2)){
+					return 4;
+				}
+				else if(self = joueurs at ((length(joueurs)) -1)){
+					return 5;
+				}
+				return 3;
+			}
+		}
+		action positionToString{
+			arg position;
+			switch(position){ 
+				match 0{
+					return "dealer";
+				}
+				match 1{
+					return "small blind";
+				}
+				match 2{
+					return "big blind";
+				}
+				match 3{
+					return "MP";
+				}
+				match 4{
+					return "Hi-Jack";
+				}
+				match 5{
+					return "Cut-off";
+				}				
+			}	
+			return "noPosition";		
+		}
 		/**
 		 * Rend le jeton � l'agent global
 		 */
@@ -2212,7 +2302,7 @@ entities {
 			}
 			
 			// On affiche le text correspondant � son statut, son argent et sa mise
-			if(dealer) {
+			/*if(dealer) {
 				if(small_blind) {
 					// A deux joueurs
 					draw "Small blind" color : rgb("white") size : 10 at : my location - {0, 45};
@@ -2224,10 +2314,11 @@ entities {
 			}
 			else if(big_blind) {
 				draw "Big blind" color : rgb("white") size : 10 at : my location - {0, 35};
-			}
-			draw  "Argent : " + string(argent) color : rgb("white") size : 10 at : my location - {0, 25};
-			draw  "Mise : " + string(mise) color : rgb("white") size : 10 at : my location - {0, 15};
-			draw  "J " + string(all_joueurs index_of self) + " : " + string(species_of(self)) color : rgb("white") size : 10 at : my location - {0, 5};
+			}*/
+			draw  "Argent : " + string(argent) color : rgb("white") size : 10 at : my location - {0, 55};
+			draw  "Mise : " + string(mise) color : rgb("white") size : 10 at : my location - {0, 45};
+			draw  "J " + string(all_joueurs index_of self) + " : " + string(species_of(self)) color : rgb("white") size : 10 at : my location - {0, 35};
+			draw " " + positionToString(maPosition()) color : rgb("magenta") size : 10 at : my location - {0, 25};
 			
 			// On affiche la main du joueur
 			if(length(main) >= 2) {
@@ -2688,7 +2779,6 @@ entities {
 				else{
 					//si on est big blind et qu'il n'y a pas eu de relance, on check
 					if(self.big_blind and miseGlobale = blind){
-						write "big blind";
 						do miser valeur : 0;
 					}
 					else{
@@ -2707,7 +2797,7 @@ entities {
 							force <- force + (main_tmp at index);
 						}
 						//Si on a une main suffisamment bonne	
-						write "main " + main_tmp + " force : " + force;
+						//write "main " + main_tmp + " force : " + force;
 						if ((!ass and force >= 23) or (ass and force >= 25)){
 							//S'il y a déjà eu des mises, et qu'on a assez d'argent on suit
 							if((miseGlobale - self.mise) > 0 and (miseGlobale - self.mise)  < argent) {
@@ -2926,10 +3016,214 @@ entities {
 	 * Ces règles sont détaillées dans le rapport et sont le résultat de la "fusion" de nombreuses stratégies recommandées 
 	 */
 	species JoueurClassifieurPosition parent : Joueur{
-		reflex choisir_action when: jeton {
-			
+		action strat{
+			arg force type : int;
+			//S'il y a déjà eu des mises, et qu'on a assez d'argent
+			if((miseGlobale - self.mise) > 0 and (miseGlobale - self.mise)  < argent) {
+				if(miseGlobale > blind and force < 25){
+					do se_coucher;
+				}
+				else{
+					if((miseGlobale - self.mise) = blind and force >= 24){
+						do miser valeur : 3 * blind;
+					}
+					else{
+						do miser valeur : miseGlobale - self.mise;
+					}
+						
+				}								
+			}
+			//S'il y a déjà eu des mises et qu'on doit faire tapis
+			else if(((miseGlobale - self.mise) > 0) and (miseGlobale - self.mise) >= argent)  {
+				do miser valeur : argent;
+				self.tapis <- true;
+			}
+			//S'il n'y a pas eu de mise, depend de notre main
+			else{
+				if(force >= 25){
+					do miser valeur : 3*blind;
+				}
+				else{
+					do miser valeur : 0;	
+				}
+						
+			}
+			return true;
 		}
+		reflex choisir_action when: jeton {
+			//Dans cette stratégie la position à la table à une grande importance, on récupère donc sa position dès le début
+			position <- maPosition();
+			float force <- 0;
+			bool ass <- false;
+			bool tete <- false;
+			bool faibleMaisCouleur <- false;
+			bool stratOk <- false;
+			//ce comportement se joue énormément au pré flop
+			do meilleure_combinaison;
+					
+			if(etape = 0){
+				//SI ON A UNE PAIRE SERVIE
+				if( type_meilleure_combinaison = 1) {
+					//on cherche à maximiser les gains sur cette très bonne main : relance
+					if(miseGlobale - self.mise >= 3*blind ){
+						do miser valeur : miseGlobale - self.mise;
+					}
+					else{
+						do miser valeur : 3*blind;
+					}
+				}
+				//Si on est big blind et qu'on a pas une main type paire servie, et que personne n'a relancé
+				else if(self.big_blind and miseGlobale = blind){
+					write "big blind";
+					do miser valeur : 0;
+				}
+				else{
+					ass <- false;
+					do meilleure_combinaison;
+					let main_tmp type : list of : int <- copy(meilleure_combinaison);	
+					loop index from : 0 to : length(main_tmp) - 1 {
+						let couleur type : int <- floor((main_tmp at index)/100)*100;
+						put (main_tmp at index) - couleur at : index in : main_tmp;
+						
+						// cas particulier, l'as
+						if(main_tmp at index = 1) {
+							put 14 at : index in : main_tmp;
+							ass <- true;
+						}
+						if(main_tmp at index >= 11){
+							tete <- true;
+						}
+						force <- force + (main_tmp at index);
+					}
+					//certaines combinaisons bien que faibles en valeur, peuvent être tentées car de même couleur
+						
+						let liste type : list of : int <- main as list;
+						
+						let old_color type : int <- floor((liste at 0)/100);
+						let flush type : bool <- true;
+						let color type : int <- floor((liste at 1)/100);
+							
+						if(color != old_color) {
+							set flush <- false;
+						}
+						
+					switch(position){
+						match 0 {
+							//si même couleur et une des mains suivantes go
+							if(flush = true and (main contains {4,7} or main contains {7,4} or main contains {5,7} or main contains {7,5} or main contains {6,5} or main contains {5,6}) ){
+								faibleMaisCouleur <- true;
+							}
+							if ((tete and force >= 16) or ( force >= 23) or faibleMaisCouleur){
+								stratOk <- strat(force);
+							}
+							else{
+								do se_coucher;
+							}
+						}
+						match 1{
+							//si même couleur et une des mains suivantes go
+							if(flush = true and (main contains {7,8} or main contains {8,7} or main contains {8,9} or main contains {9,8} or main contains {10,9} or main contains {9,10} or main contains {10,11} or main contains {11,10}) ){
+								faibleMaisCouleur <- true;
+							}
+							if ((tete and force >= 23) or ( force >= 23) or faibleMaisCouleur){
+								stratOk <- strat(force);
+							}
+							else{
+								do se_coucher;
+							}
+						}
+						match 2{
+							//si même couleur et une des mains suivantes go
+							if(flush = true and (main contains {7,8} or main contains {8,7} or main contains {8,9} or main contains {9,8} or main contains {10,9} or main contains {9,10} or main contains {10,11} or main contains {11,10}) ){
+								faibleMaisCouleur <- true;
+							}
+							if ((tete and force >= 23) or ( force >= 23) or faibleMaisCouleur){
+								stratOk <- strat(force);
+							}
+							else{
+								do se_coucher;
+							}
+						}							
+						match 3 {
+							faibleMaisCouleur <- false;							
+							if ((tete and force >= 25) or ( force >= 25) or faibleMaisCouleur){
+								stratOk <- strat(force);
+							}
+							else{
+								do se_coucher;
+							}
+						}
+						match 4 {
+							//si même couleur et une des mains suivantes go
+							if(flush = true and (main contains {7,8} or main contains {8,7} or main contains {8,9} or main contains {9,8} or main contains {10,9} or main contains {9,10} or main contains {10,11} or main contains {11,10}) ){
+								faibleMaisCouleur <- true;
+							}
+							if ((tete and force >= 23) or ( force >= 23) or faibleMaisCouleur){
+								stratOk <- strat(force);
+							}
+							else{
+								do se_coucher;
+							}
+						}
+						match 5 {
+							//si même couleur et une des mains suivantes go
+							if(flush = true and (main contains {5,7} or main contains {7,5} or main contains {6,5} or main contains {5,6}) ){
+								faibleMaisCouleur <- true;
+							}
+							if ((tete and force >= 16) or ( force >= 23) or faibleMaisCouleur){
+								stratOk <- strat(force);
+							}
+							else{
+								do se_coucher;
+							}
+						}
+					}	
+				}
+			}			
+			//post flop
+			else if(etape > 0){
+				miseCourante <- 0;
+				do meilleure_combinaison;
+				//Si on a au moins une paire on reste
+				if( type_meilleure_combinaison >= 1){
+					//S'il y a déjà eu des mises ATTENTION
+					if(miseGlobale - self.mise > 0){
+						//On reste uniquement si on a mieux qu'une paire
+						if( type_meilleure_combinaison > 1){
+							write "suit avec mieux qu'une paire";
+							do miser valeur : mise - self.mise;
+						}
+						//Sinon on se couche
+						else{
+							do se_coucher;
+						}
+					}
+					//S'il n'y a pas eu encore de mise
+					else{
+						//Mise si mieux qu'une paire
+						if(type_meilleure_combinaison > 1){
+							write "on mise car mieux qu'une paire";
+							do miser valeur : 3*blind;
+						}
+						//Check sinon
+						else{
+							do miser valeur : 0;
+						}
+					}
+				}
+				else{
+					if((miseGlobale - self.mise) = 0){
+						do miser valeur : 0;
+					}
+					else{
+						do se_coucher;
+					}					
+				}
+			}			
+		}
+		
 	}
+	
 	species JoueurApprentissage parent : Joueur{
 		
 	}
@@ -2998,89 +3292,3 @@ experiment PokerInterface type: gui {
 		}
 	}
 }
-
-
-// --- Batchs pour les exp�riences ---
-// Ces diff�rentes exp�riences sont comment�es pour �viter de surcharger l'interface
-
-/**
- * Premier type d'exp�rience o� l'on �tudie quel type d'agent sort vainqueur lorsqu'on les fait s'affronter les uns les autres
- */
-//experiment PokerExp1 type : batch repeat : 100 until : (time >= limite_temps or vainqueur != nil) {
-//	parameter "Limite Temps" var : limite_temps <- 20000;
-//	parameter "Nombre de joueurs" var : nb_joueurs <- 12;
-//	parameter "Argent" var : argent_init <- 1000;
-//	parameter "Blind" var : blind <- 10;
-//	parameter "Max relance" var : max_raises <- 3;
-//
-//	parameter "Part des agents" var : partsAgents among : [
-//		[1::1.0, 2::0.0, 3::0.0, 4::0.0], [1::0.0, 2::1.0, 3::0.0, 4::0.0], [1::0.0, 2::0.0, 3::1.0, 4::0.0], [1::0.0, 2::0.0, 3::0.0, 4::1.0],
-//		[1::0.5, 2::0.5, 3::0.0, 4::0.0], [1::0.5, 2::0.0, 3::0.5, 4::0.0], [1::0.5, 2::0.0, 3::0.0, 4::0.5], [1::0.0, 2::0.5, 3::0.0, 4::0.5], [1::0.0, 2::0.5, 3::0.5, 4::0.0], [1::0.0, 2::0.0, 3::0.5, 4::0.5],
-//		[1::0.33, 2::0.33, 3::0.33, 4::0.0], [1::0.33, 2::0.33, 3::0.0, 4::0.33], [1::0.33, 2::0.0, 3::0.33, 4::0.33], [1::0.0, 2::0.33, 3::0.33, 4::0.33],
-//		[1::0.25, 2::0.25, 3::0.25, 4::0.25]  
-//	];
-//}
-
-/**
- * Exp�rience o� l'on cherche les meilleurs seuils pour le joueur bluffer
- */
-//experiment PokerExpBestBluffer type : batch repeat : 100 until : (time >= limite_temps or vainqueur != nil) {
-//	parameter "Limite Temps" var : limite_temps <- 20000;
-//	parameter "Nombre de joueurs" var : nb_joueurs <- 12;
-//	parameter "Argent" var : argent_init <- 1000;
-//	parameter "Blind" var : blind <- 10;
-//	parameter "Max relance" var : max_raises <- 3;
-//	parameter "Part des agents" var : partsAgents <- [1::0.25, 2::0.25, 3::0.25, 4::0.25];
-//	
-//	parameter "Seuil suivre" var : seuil_suivre_param_bluffer among : [20.0, 30.0, 40.0, 60.0];
-//	parameter "Seuil relance" var : seuil_relance_param_bluffer among : [60.0, 70.0, 80.0, 90.0];
-//}
-
-/**
- * Exp�rience o� l'on cherche les meilleurs seuils pour le joueur prudent
- */
-//experiment PokerExpBestPrudent type : batch repeat : 100 until : (time >= limite_temps or vainqueur != nil) {
-//	parameter "Limite Temps" var : limite_temps <- 20000;
-//	parameter "Nombre de joueurs" var : nb_joueurs <- 12;
-//	parameter "Argent" var : argent_init <- 1000;
-//	parameter "Blind" var : blind <- 10;
-//	parameter "Max relance" var : max_raises <- 3;
-//	parameter "Part des agents" var : partsAgents <- [1::0.25, 2::0.25, 3::0.25, 4::0.25];
-//	
-//	parameter "Seuil suivre" var : seuil_suivre_param_prudent among : [20.0, 30.0, 40.0, 60.0];
-//	parameter "Seuil relance" var : seuil_relance_param_prudent among : [60.0, 70.0, 80.0, 90.0];
-//}
-
-/**
- * Exp�rience o� on cherche quel est le meilleur entre le joueur prudent et le joueur bluffer avec leur configuration optimale
- */
-//experiment PokerExpBestBlufferVSBestPrudent type : batch repeat : 1000 until : (time >= limite_temps or vainqueur != nil) {
-//	parameter "Limite Temps" var : limite_temps <- 30000;
-//	parameter "Nombre de joueurs" var : nb_joueurs <- 12;
-//	parameter "Argent" var : argent_init <- 1000;
-//	parameter "Blind" var : blind <- 10;
-//	parameter "Max relance" var : max_raises <- 3;
-//	parameter "Part des agents" var : partsAgents <- [1::0.25, 2::0.25, 3::0.25, 4::0.25];
-//	
-//	parameter "Seuil suivre prudent" var : seuil_suivre_param_prudent among : [40.0];
-//	parameter "Seuil relance prudent" var : seuil_relance_param_prudent among : [60.0];
-//	parameter "Seuil suivre bluffer" var : seuil_suivre_param_bluffer among : [30.0];
-//	parameter "Seuil relance bluffer" var : seuil_relance_param_bluffer among : [60.0];
-//}
-
-/**
- * Exp�rience o� l'on �tudie l'influence de l'argent initial et des blinds sur l'efficacit� des agents
- */
-//experiment PokerExpArgent type : batch repeat : 100 until : (time >= limite_temps or vainqueur != nil) {
-//	parameter "Limite Temps" var : limite_temps <- 2000;
-//	parameter "Nombre de joueurs" var : nb_joueurs <- 12;
-//	parameter "Max relance" var : max_raises <- 3;
-//	parameter "Part des agents" var : partsAgents <- [1::0.25, 2::0.25, 3::0.25, 4::0.25];	
-//	parameter "Seuil suivre prudent" var : seuil_suivre_param_prudent <- 40.0;
-//	parameter "Seuil relance prudent" var : seuil_relance_param_prudent <- 60.0;
-//	parameter "Seuil suivre bluffer" var : seuil_suivre_param_bluffer <- 30.0;
-//	parameter "Seuil relance bluffer" var : seuil_relance_param_bluffer <- 60.0;
-//
-//	parameter "Argent" var : argent_init among : [1000, 2000, 5000, 10000];
-//	parameter "Blind" var : blind among : [10, 20, 50, 100];
-//}
