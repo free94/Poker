@@ -57,13 +57,13 @@ global {
 	/**
 	 * Ajouter ici les parts des diff�rents agents � cr�er
 	 */
-	map partsAgents <- [1::0.0, 2::0.0, 3::0.1, 4::0.1, 5::0.1, 6::0.1, 7::0.1];
+	map partsAgents <- [1::0.0, 2::0.0, 3::0.1, 4::0.1, 5::0.1, 6::0.1, 7::0.0, 8::0.1];
 	
 	/**
 	 * Map utilis�e pour contrer le fait qu'une map contenant directement des pairs (species::part) ne marche
 	 * pas en param�tres. C'est un peu lourd mais �a permet de faire l'affaire
 	 */
-	map correspondance <- [1::JoueurZISuiveur, 2::JoueurZIAleatoire, 3::JoueurPrudent, 4::JoueurBluffer, 5::JoueurClassifieurSerre, 6::JoueurClassifieurLarge, 7::JoueurClassifieurPosition];
+	map correspondance <- [1::JoueurZISuiveur, 2::JoueurZIAleatoire, 3::JoueurPrudent, 4::JoueurBluffer, 5::JoueurClassifieurSerre, 6::JoueurClassifieurLarge, 7::JoueurClassifieurPosition, 8::JoueurApprentissage];
 	
 	// ------ Joueurs ZIAl�atoires ------
 	/**
@@ -204,10 +204,28 @@ global {
 	int etape;
 	
 	/**
+	 * liste des joueurs qui suivent à chaque stade de la partie
+	 */
+	list<Joueur> suiveur 		<- [];
+	
+	/**
+	 * Liste des joueurs qui bluffent à chaque stade de la partie
+	 */
+	list<Joueur> bluffer 	<- [];
+	
+	/**
 	 * Pour stocker le vainqueur de la simulation
 	 */
 	Joueur vainqueur <- nil;
 	
+	/**
+	 * Pour stocker le gagnant qui remporte le tour
+	 */
+	list<Joueur> vainqueurs <- [];
+	/**
+	 * variable qui indique quand on a des infos pour les stats à récupérer
+	 */
+	 bool infos <- false;
 	/**
 	 * Initialisation de la simulation
 	 */
@@ -420,6 +438,8 @@ global {
 	 */
 	reflex etape_suivante when: encheres_finies and jeton {
 		switch(etape) {
+			suiveur <- [];
+			bluffer <- [];
 			match 0 {
 				// Etape de mises de pr�-flop finie
 				
@@ -434,6 +454,7 @@ global {
 				do bruler_carte;
 				
 				// Et on �tale le flop
+				write "--------FLOP--------";
 				add self pop_card [] to : cartes_communes;
 				add self pop_card [] to : cartes_communes;
 				add self pop_card [] to : cartes_communes;
@@ -487,6 +508,7 @@ global {
 				do bruler_carte;
 				
 				// Et on �tale le turn
+				write "--------TURN-------";
 				add self pop_card [] to : cartes_communes;
 				
 				// On d�finit le premier joueur :
@@ -538,6 +560,7 @@ global {
 				do bruler_carte;
 				
 				// Et on �tale la river
+				write "--------RIVER-------";
 				add self pop_card [] to : cartes_communes;
 				
 				// On d�finit le premier joueur :
@@ -640,6 +663,8 @@ global {
 				}
 				set etape <- etape + 1;
 				write "" + joueurs at ((classement[0]) at 0) + " remporte la manche";
+				//on ajoute le vainqueur du tour à la liste
+				add  (joueurs at ((classement[0]) at 0)) to: vainqueurs;
 				do terminer_partie classement : classement;
 			}
 		}
@@ -1707,9 +1732,20 @@ global {
 				if(valeur_supp > 0 and !(joueurs at joueur_courant).couche) {
 					set miseGlobale <- miseGlobale + valeur_supp;
 					set no_raise <- false;
-					
+					if(((joueurs at joueur_courant).type_meilleure_combinaison < 2 and etape > 0) or (joueurs at joueur_courant).type_meilleure_combinaison < 1 and etape = 0){
+						//pour apprentissage : on indique que le joueur bluff sur ce tour
+						add joueurs at joueur_courant to : bluffer;
+						write "ça bluff sec : " + joueurs at joueur_courant;
+					}					
 					// Ce joueur devient le nouveau "premier joueur"
 					set premier_joueur <- joueur_courant;
+				}
+				else{
+					if((joueurs at joueur_courant).type_meilleure_combinaison < 2 and miseGlobale > blind){
+						//pour apprentissage : on indique que le joueur suit sur ce tour
+						add joueurs at joueur_courant at : 0 to : suiveur;				
+						write "ça suit sec : " + joueurs at joueur_courant;	
+					}
 				}	
 				
 			}
@@ -2831,8 +2867,8 @@ entities {
 					if(miseGlobale - self.mise > 0){
 						//On reste uniquement si on a mieux qu'une paire
 						if( type_meilleure_combinaison > 1){
-							write "suit avec mieux qu'une paire";
-							do miser valeur : mise - self.mise;
+							//write "suit avec mieux qu'une paire";
+							do miser valeur : miseGlobale - self.mise;
 						}
 						//Sinon on se couche
 						else{
@@ -2843,7 +2879,7 @@ entities {
 					else{
 						//Mise si mieux qu'une paire
 						if(type_meilleure_combinaison > 1){
-							write "on mise car mieux qu'une paire";
+							//write "on mise car mieux qu'une paire";
 							do miser valeur : 3*blind;
 						}
 						//Check sinon
@@ -2889,7 +2925,7 @@ entities {
 				else{
 					//si on est big blind et qu'il n'y a pas eu de relance, on check
 					if(self.big_blind and miseGlobale = blind){
-						write "big blind";
+						//write "big blind";
 						do miser valeur : 0;
 					}
 					else{
@@ -2928,7 +2964,7 @@ entities {
 						}
 						
 						//Si on a une main suffisamment bonne	
-						write "main " + main_tmp + " force : " + force;
+						//write "main " + main_tmp + " force : " + force;
 						if ((tete and force >= 16) or ( force >= 23)){
 							//S'il y a déjà eu des mises, et qu'on a assez d'argent
 							if((miseGlobale - self.mise) > 0 and (miseGlobale - self.mise)  < argent) {
@@ -2978,8 +3014,8 @@ entities {
 					if(miseGlobale - self.mise > 0){
 						//On reste uniquement si on a mieux qu'une paire
 						if( type_meilleure_combinaison > 1){
-							write "suit avec mieux qu'une paire";
-							do miser valeur : mise - self.mise;
+							//write "suit avec mieux qu'une paire";
+							do miser valeur : miseGlobale - self.mise;
 						}
 						//Sinon on se couche
 						else{
@@ -2990,7 +3026,7 @@ entities {
 					else{
 						//Mise si mieux qu'une paire
 						if(type_meilleure_combinaison > 1){
-							write "on mise car mieux qu'une paire";
+							//write "on mise car mieux qu'une paire";
 							do miser valeur : 3*blind;
 						}
 						//Check sinon
@@ -3190,8 +3226,8 @@ entities {
 					if(miseGlobale - self.mise > 0){
 						//On reste uniquement si on a mieux qu'une paire
 						if( type_meilleure_combinaison > 1){
-							write "suit avec mieux qu'une paire";
-							do miser valeur : mise - self.mise;
+							//write "suit avec mieux qu'une paire";
+							do miser valeur : miseGlobale - self.mise;
 						}
 						//Sinon on se couche
 						else{
@@ -3202,7 +3238,7 @@ entities {
 					else{
 						//Mise si mieux qu'une paire
 						if(type_meilleure_combinaison > 1){
-							write "on mise car mieux qu'une paire";
+							//write "on mise car mieux qu'une paire";
 							do miser valeur : 3*blind;
 						}
 						//Check sinon
@@ -3225,7 +3261,167 @@ entities {
 	}
 	
 	species JoueurApprentissage parent : Joueur{
+		/*map bluffers 			<- all_joueurs as_map (each::0);
+		map suiveurs 			<- all_joueurs as_map (each::0);
+		map serieux 			<- all_joueurs as_map (each::0);*/
+		map scoreJoueur 		<- all_joueurs as_map (each::[1 :: 0, 2 :: 0, 3 :: 0]); // donne [Joueur1 :: [1::0, 2::0; 3::0], Joueur2 :: [0 ... ]
 		
+		//reflexe pour les statistiques, appelé à la fin de chaque tour d'enchères
+		reflex stat when: infos{
+			infos <- false;
+		}
+			/*
+			write "*** etape : " + etape;
+			//suivi contient tous les joueurs ayant suivi sur CE TOUR de mise
+			if(!empty(suivi)){
+				loop j over : suivi{
+					//on juge que le joueur est un "suiveur" sur ce coup là à condition qu'il ne s'agisse pas d'un tour de check complet sans mise autre que les blinds au pré flop
+					if(miseGlobale > blind){
+						scoreJoueur[j][1] <- scoreJoueur[j][1] + 1;				
+					}
+				}
+			}
+			if(!empty(relance)){
+			//relance contient tous les joueurs ayant miser en premier ou relancé sur une mise existante
+				loop j over : relance{
+					scoreJoueur[j][2] <- scoreJoueur[j][2] + 1;
+				}			
+			}
+			//phase de l'abattage
+			if(etape = 4){
+				write "on y est";
+				loop j over : scoreJoueur{
+					//on attribut un "score" à chaque joueur, en fonction de ces actions pendant le tour, exemple : +1 bluff si à l'abattage il n'avait rien mais a relancé sur le tour
+					if((scoreJoueur at j)[1] >= 1){
+						//S'il a moins qu'une double paire, on est face à soit un joueur qui bluff soit un joueur qui joue TROP large... même conséquence
+						if((joueurs at j).meilleure_combinaison[0] < 2){
+							bluffers[j] <- bluffers[j] + 1;		
+							write "***bluffer +1 : " + j;				
+						}
+						else{
+							serieux[j] <- serieux[j] + 1;		
+							write "***serieux +1 : " + j;				
+						}
+					}
+					//le joueur est un suiveur s'il n'a rien à l'abattage mais qu'il y est arrivé malgré les mises supérieures à simplement une blind
+					if((scoreJoueur at j)[0] >= 1 and (scoreJoueur at j)[1] = 0){
+						if((joueurs at j).meilleure_combinaison[0] < 2){
+							suiveurs[j] <- suiveurs[j] + 1;	
+							write "***suiveur +1 : " + j;					
+						}
+					}
+					///Enfin on remet "les compteurs à zéro" pour le prochain tour
+					(scoreJoueur at j)[0] <- 0;	
+					(scoreJoueur at j)[1] <- 0;	
+					(scoreJoueur at j)[2] <- 0;						
+				}
+			}
+			repereEtape <- repereEtape + 1;
+			write "repere : " + repereEtape;
+		}*/
+		
+		reflex choisir_action when: jeton {
+			float force <- 0;
+			bool ass <- false;
+			//ce comportement se joue énormément au pré flop
+			do meilleure_combinaison;
+			if(etape = 0){
+				//SI ON A UNE PAIRE SERVIE
+				if( type_meilleure_combinaison = 1) {
+					//on cherche à maximiser les gains sur cette très bonne main : relance
+					if(miseGlobale - self.mise >= 3*blind ){
+						do miser valeur : miseGlobale - self.mise;
+					}
+					else{
+						do miser valeur : 3*blind;
+					}
+				}
+				else{
+					//si on est big blind et qu'il n'y a pas eu de relance, on check
+					if(self.big_blind and miseGlobale = blind){
+						do miser valeur : 0;
+					}
+					else{
+						ass <- false;
+						do meilleure_combinaison;
+						let main_tmp type : list of : int <- copy(meilleure_combinaison);	
+						loop index from : 0 to : length(main_tmp) - 1 {
+							let couleur type : int <- floor((main_tmp at index)/100)*100;
+							put (main_tmp at index) - couleur at : index in : main_tmp;
+							
+							// cas particulier, l'as
+							if(main_tmp at index = 1) {
+								put 14 at : index in : main_tmp;
+								ass <- true;
+							}
+							force <- force + (main_tmp at index);
+						}
+						//Si on a une main suffisamment bonne	
+						//write "main " + main_tmp + " force : " + force;
+						if ((!ass and force >= 23) or (ass and force >= 25)){
+							//S'il y a déjà eu des mises, et qu'on a assez d'argent on suit
+							if((miseGlobale - self.mise) > 0 and (miseGlobale - self.mise)  < argent) {
+								do miser valeur : (miseGlobale - self.mise);
+								miseCourante <- (miseGlobale - self.mise);
+							}
+							//S'il y a déjà eu des mises et qu'on doit faire tapis
+							else if(((miseGlobale - self.mise) > 0) and (miseGlobale - self.mise) >= argent)  {
+								do miser valeur : argent;
+								self.tapis <- true;
+							}
+							//S'il n'y a pas eu de mise, on check
+							else{
+								do miser valeur : 0;
+							}
+						}
+						//Main insuffisante, on se couche
+						else{
+							do se_coucher;
+						}
+					}				
+				}
+			}
+			//post flop
+			if(etape > 0){
+				miseCourante <- 0;
+				do meilleure_combinaison;
+				//Si on a au moins une paire on reste
+				if( type_meilleure_combinaison >= 1){
+					//S'il y a déjà eu des mises ATTENTION
+					if(miseGlobale - self.mise > 0){
+						//On reste uniquement si on a mieux qu'une paire
+						if( type_meilleure_combinaison > 1){
+							//write "suit avec mieux qu'une paire";
+							do miser valeur : miseGlobale - self.mise;
+						}
+						//Sinon on se couche
+						else{
+							do se_coucher;
+						}
+					}
+					//S'il n'y a pas eu encore de mise
+					else{
+						//Mise si mieux qu'une paire
+						if(type_meilleure_combinaison > 1){
+							//write "on mise car mieux qu'une paire";
+							do miser valeur : 3*blind;
+						}
+						//Check sinon
+						else{
+							do miser valeur : 0;
+						}
+					}
+				}
+				else{
+					if((miseGlobale - self.mise) = 0){
+						do miser valeur : 0;
+					}
+					else{
+						do se_coucher;
+					}					
+				}
+			}							
+		}
 	}
 }
 
