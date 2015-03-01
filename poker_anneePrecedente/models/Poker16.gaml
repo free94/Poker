@@ -212,7 +212,10 @@ global {
 	 * Liste des joueurs qui bluffent à chaque stade de la partie
 	 */
 	list<Joueur> bluffer 	<- [];
-	
+	/**
+	 * Liste des joueurs sérieux
+	 */
+	list<Joueur> serieux 	<- [];	
 	/**
 	 * Pour stocker le vainqueur de la simulation
 	 */
@@ -226,6 +229,10 @@ global {
 	 * variable qui indique quand on a des infos pour les stats à récupérer
 	 */
 	 bool infos <- false;
+	 /**
+	  * numéro du tour dans la partie
+	  */
+	  int nombreTour <- 0;
 	/**
 	 * Initialisation de la simulation
 	 */
@@ -455,7 +462,7 @@ global {
 				do bruler_carte;
 				
 				// Et on �tale le flop
-				write "--------FLOP--------";
+				write "\t--------FLOP--------";
 				add self pop_card [] to : cartes_communes;
 				add self pop_card [] to : cartes_communes;
 				add self pop_card [] to : cartes_communes;
@@ -510,7 +517,7 @@ global {
 				do bruler_carte;
 				
 				// Et on �tale le turn
-				write "--------TURN-------";
+				write "\t--------TURN-------";
 				add self pop_card [] to : cartes_communes;
 				
 				// On d�finit le premier joueur :
@@ -563,7 +570,7 @@ global {
 				do bruler_carte;
 				
 				// Et on �tale la river
-				write "--------RIVER-------";
+				write "\t--------RIVER-------";
 				add self pop_card [] to : cartes_communes;
 				
 				// On d�finit le premier joueur :
@@ -665,7 +672,12 @@ global {
 					set index <- index + 1;
 				}
 				set etape <- etape + 1;
-				write "" + joueurs at ((classement[0]) at 0) + " remporte la manche";
+				write "\t" + joueurs at ((classement[0]) at 0) + " remporte la manche";
+				loop j over : joueurs{
+					if (!(suiveur contains(j)) and !(bluffer contains(j))){
+						add j to: serieux;
+					}
+				}
 				//on ajoute le vainqueur du tour à la liste
 				add  (joueurs at ((classement[0]) at 0)) to: vainqueurs;
 				//on ne conserve que les joueurs qui sont allés jusqu'à l'abattage dans nos listes d'informations, si on ne voit pas les cartes on ne juge pas
@@ -1625,7 +1637,8 @@ global {
 		// Si on a d�termin� un vainqueur on arr�te
 		if(vainqueur = nil) {
 			// Et on les distribue
-			write "************************\n--------PRE-FLOP--------";
+			nombreTour <- nombreTour + 1;
+			write "************" + nombreTour + "************\n--------PRE-FLOP--------";
 			do distribuer_mains;
 			
 			// On choisit le dealer, le small blind et big blind
@@ -1738,7 +1751,7 @@ global {
 				// Sinon on consid�re qu'il se couche et on prend
 				// sa mise parce que c'est pas bien de tricher
 				set (joueurs at joueur_courant).couche <- true;
-				write "* "+ joueurs at joueur_courant + " se couche";
+				write "*(fail) "+ joueurs at joueur_courant + " se couche";
 			} 
 			else{
 				(joueurs at joueur_courant).miseCourante <- mise;
@@ -1750,7 +1763,7 @@ global {
 					if(((joueurs at joueur_courant).type_meilleure_combinaison < 2 and etape > 0)){// or (joueurs at joueur_courant).type_meilleure_combinaison < 1 and etape = 0){
 						//pour apprentissage : on indique que le joueur bluff sur ce tour
 						add joueurs at joueur_courant to : bluffer;
-						write "ça bluff sec : " + bluffer;
+						//write "ça bluff sec : " + bluffer;
 					}					
 					// Ce joueur devient le nouveau "premier joueur"
 					set premier_joueur <- joueur_courant;
@@ -1759,7 +1772,7 @@ global {
 					if((joueurs at joueur_courant).type_meilleure_combinaison < 2 and miseGlobale > blind and (joueurs at joueur_courant).miseCourante > 0){
 						//pour apprentissage : on indique que le joueur suit sur ce tour
 						add joueurs at joueur_courant at : 0 to : suiveur;				
-						write "ça suit sec : " + suiveur;	
+						//write "ça suit sec : " + suiveur;	
 					}
 				}	
 				
@@ -1784,7 +1797,7 @@ global {
 				set premier_joueur <- joueur_suiv;
 				set pas_de_tour <- true;
 			}
-			write "" + joueurs at joueur_courant + " se couche";
+			write "\t" + joueurs at joueur_courant + " se couche";
 		}
 		
 		// Si jamais tout le monde s'est couch� sauf un joueur
@@ -2241,10 +2254,10 @@ entities {
 					do valider_mise with : [mise :: valeur, valeur_supp :: valeurSupp];
 				}
 				if(valeur = 0 and self.out = false){
-					write "" + self + " check";
+					write "\t" + self + " check";
 				}
 				else{
-					write "" + self + " mise " + valeur;
+					write "\t" + self + " mise " + valeur;
 				}
 				
 				do rendre_jeton;
@@ -3127,7 +3140,7 @@ entities {
 				}
 				//Si on est big blind et qu'on a pas une main type paire servie, et que personne n'a relancé
 				else if(self.big_blind and miseGlobale = blind){
-					write "big blind";
+					//write "big blind";
 					do miser valeur : 0;
 				}
 				else{
@@ -3280,7 +3293,7 @@ entities {
 	species JoueurApprentissage parent : Joueur{
 		map bluffers 			<- all_joueurs as_map (each::(0));
 		map suiveurs 			<- all_joueurs as_map (each::(0));
-		map serieux 			<- all_joueurs as_map (each::(0));
+		map bonJoueur 			<- all_joueurs as_map (each::(0));
 		//matrix scoreJoueur 	<- 0.0 as_matrix ({nb_joueurs, 3});
 		
 		//reflexe pour les statistiques, appelé à la fin de chaque tour d'enchères
@@ -3297,8 +3310,15 @@ entities {
 					bluffers[j] <- bluffers[j] +1;
 				}			
 			}
-			write "les infos :";
-			write "" + bluffers;
+			if(!empty(serieux)){
+				loop j over: serieux {					
+					bonJoueur[j] <- bonJoueur[j] +1;
+				}	
+			}
+			/*if(nombreTour mod 50 = 0){
+				write "\t" + suiveurs;
+				write "\t" + bluffers;
+			}*/
 			infos <- false;				
 		}			
 		
