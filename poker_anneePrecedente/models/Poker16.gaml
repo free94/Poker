@@ -57,13 +57,13 @@ global {
 	/**
 	 * Ajouter ici les parts des diff�rents agents � cr�er
 	 */
-	map partsAgents <- [1::0.0, 2::0.0, 3::0.1, 4::0.1, 5::0.1, 6::0.1, 7::0.0, 8::0.1];
+	map partsAgents <- [1::0.0, 2::0.0, 3::0.1, 4::0.1, 5::0.1, 6::0.1, 7::0.0, 8::0.1, 9::0.0];
 	
 	/**
 	 * Map utilis�e pour contrer le fait qu'une map contenant directement des pairs (species::part) ne marche
 	 * pas en param�tres. C'est un peu lourd mais �a permet de faire l'affaire
 	 */
-	map correspondance <- [1::JoueurZISuiveur, 2::JoueurZIAleatoire, 3::JoueurPrudent, 4::JoueurBluffer, 5::JoueurClassifieurSerre, 6::JoueurClassifieurLarge, 7::JoueurClassifieurPosition, 8::JoueurApprentissage];
+	map correspondance <- [1::JoueurZISuiveur, 2::JoueurZIAleatoire, 3::JoueurPrudent, 4::JoueurBluffer, 5::JoueurClassifieurSerre, 6::JoueurClassifieurLarge, 7::JoueurClassifieurPosition, 8::JoueurApprentissage, 9::JoueurProbabiliste];
 	
 	// ------ Joueurs ZIAl�atoires ------
 	/**
@@ -98,7 +98,7 @@ global {
 	 */
 	float max_relance_param_prudent <- 0.1 min : 0.0 max : 1.0;
 
-
+	
 	// ------ Joueurs bluffers ------
 	/**
 	 * Seuil de confiance � partir duquel le joueur prudent estime qu'il peut suivre
@@ -119,8 +119,7 @@ global {
 	 * Part minimale de son argent que le joueur bluffer va mettre dans une relance de bluff
 	 */
 	float min_relance_param <- 0.25 min : 0.0 max : 1.0;
-
-
+	
 	
 	/**
 	 * Liste des joueurs � la table
@@ -3550,8 +3549,130 @@ entities {
 			}							
 		}
 	}
-}
 
+	/**
+	 * Le JoueurProbabiliste décide son action (suivre/coucher) suivant une comparaison de l'espérance à avoir en cas de gagant/perdant
+	 */
+	species JoueurProbabiliste parent : Joueur{
+		//TODO
+		//les types de meilleur combinaison de notre main et de celle de notre adversaire
+		int type_meilleure_combinaison_joueur <- -1;
+		int type_meilleure_combinaison_adv <- -1;
+		//compteur
+		int compteur <- 0;
+		//les chances à gagner pour chaque type de main
+		list chances_gagner <- [] of : float;
+		//les chances à perdre pour chaque type de main
+		list chances_perdre <- [] of : float;
+		reflex choisir_action when:(jeton=true) 
+		{
+			//initialiser les valeurs pour les attributs
+			chances_gagner <- [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+			chances_perdre <- [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+			//Tous les mains possibles d'un de nos adversaires
+			let mains_adv type:list <- self mains_adverse[];
+			loop index from : 0 to : length(mains_adv) - 1 {
+				let main_adv type:list<int> <- (mains_adv at index);
+				//comparer la valeur de la main de notre adversaire avec la notre
+				//remplacer notre main avec celle de notre adversaire pour faire le calcul (notre main sera etre restitué à la fin)
+				type_meilleure_combinaison_adv <- self trouver_type_meilleure_combinaison_adv[main_adv];
+				type_meilleure_combinaison_joueur <- self trouver_type_meilleure_combinaison_adv[main];
+				//TODO if...
+				
+				
+			}
+			
+			
+			// On regarde si l'agent est dans la capacit� de relancer
+			
+		}
+		/*
+		 * Retourner tous les mains possible d'un de nos adversaires
+		 * un maine = une liste de int
+		 */
+		action mains_adverse type : list {
+			list mains <- [] of :list;
+			loop index from : 0 to : length(deck) - 1 {
+				//identifier la première carte
+				let carte1 type : int <- deck at index;
+				if((main contains carte1) or (cartes_communes contains carte1)){
+					//Si cette carte est déja présenté dans la main du joueur ou sur la table, il ne peut pas être utilisé par l'adversaire
+				}else{
+					//La main de l'adversaire
+					list main_adv <- [] of :int;
+					//1ere carte dans la main
+					add carte1 to: main_adv;
+					//identifier la deuxieme carte
+					loop index2 from : (index+1) to : length(deck) - 1 {
+						if((main contains carte1) or (cartes_communes contains carte1)){
+							//Si cette carte est déja présenté dans la main du joueur ou sur la table, il ne peut pas être utilisé par l'adversaire
+						}else{
+							add (deck at index2) to: main_adv;
+							add copy(main_adv) to:mains;
+							remove (main_adv at 1) from: main_adv;
+						}
+					}
+				}
+			}
+			return mains;
+		}
+		
+		/*
+		 * Trouver le type de la mailleur combinaison pour une main donnée
+		 */
+		action trouver_type_meilleure_combinaison_adv type: int{
+			arg main_adversaire type : list;
+			//garder une copie pour notre main
+			let main_copie type:list <-copy(main);
+			//Remplacer notre main par celle de l'adversaire afin de permettre l'évaluation
+			main <- main_adversaire;
+			// Si on n'a pas encore pass� le pr�-flop, la combinaison n'est constitu�e que de notre
+			int type_adv;
+			// main
+			if(world.etape > 0) {
+				ask world {
+					type_adv <- trouver_meilleure_combinaison joueur : joueurs index_of (myself);
+				}
+				//resituer notre main
+				main <- main_copie;
+				return type_adv;
+			}
+			else {
+				// Il faut trouver la meilleure combinaison dans notre main de deux cartes
+
+				// On enl�ve les informations de couleur
+				let main_tmp type : list of : int <- copy(main);	
+				loop index from : 0 to : length(main_tmp) - 1 {
+					let couleur type : int <- floor((main_tmp at index)/100)*100;
+					put (main_tmp at index) - couleur at : index in : main_tmp;
+					
+					// L'As oblige � modifier un peu la liste
+					if(main_tmp at index = 1) {
+						put 14 at : index in : main_tmp;
+					}
+				}
+				set main_tmp <- main_tmp sort_by(each);
+				
+				// On regarde si c'est une pair
+				if((main_tmp at 0) = (main_tmp at 1)) {
+					set type_adv <- 1;
+				}
+				else {
+					set type_adv <- 0;
+				}
+				//resituer notre main
+				main <- main_copie;
+				return type_adv;
+			}
+			
+			
+		}
+		
+		
+		
+	}
+}
+	
 
 experiment PokerInterface type: gui {
 	/**
