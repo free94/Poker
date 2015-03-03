@@ -3388,7 +3388,7 @@ entities {
 							if(miseGlobale - self.mise > 3*blind ){
 								//On suit donc uniquement si on a une paire au pire de 10
 								if([110,123,136,149] contains(self.main[0]) and [110,123,136,149] contains(self.main[1])){
-									
+									do miser valeur : miseGlobale - self.mise;
 								}
 								else{
 									do se_coucher;
@@ -3397,6 +3397,16 @@ entities {
 							else{
 								do miser valeur : miseGlobale - self.mise;
 							}							
+						}
+						//on considère qu'il n'y a aucun joueur sérieux sur cette relance, on va miser encore plus
+						else{
+							if((miseGlobale - self.mise) * 2 >= argent){
+								do miser valeur : argent;
+								self.tapis <- true;
+							}
+							else{
+								do miser valeur : (miseGlobale - self.mise) * 2;								
+							}
 						}			
 					}					
 					//s'il n'y a pas eu de relance
