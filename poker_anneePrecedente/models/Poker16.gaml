@@ -450,6 +450,7 @@ global {
 		switch(etape) {
 			suiveur <- [];
 			bluffer <- [];
+			joueurRelance <- [];
 			match 0 {
 				// Etape de mises de pr�-flop finie
 				
@@ -3341,27 +3342,56 @@ entities {
 		action typeJoueur {
 			arg j;
 			/**
-			 * Le nombre d'information dont on dispose sur le joueur, pour permettre de faire un ratio 
+			 * Le nombre d'informations dont on dispose sur le joueur, pour permettre de faire un ratio 
 			 */
 			int nombreInfos <- suiveurs[j] + bluffers[j] + bonJoueur[j];
-			if (nombreInfos = 0){
+			//Si on considère qu'on en sait pas assez, on dit qu'on a pas d'infos : idée de réalisme, on ne juge pas qu'un joueur est clairement un bluffeur sur un seul bluff
+			if (nombreInfos < 3){
 				return -1;
 			}
 			else{
 				//joueur majoritairement suiveur
 				if(suiveurs[j] > bluffers[j] and suiveurs[j] > bonJoueur[j]){
-					
+					return 0;
 				}
 				//joueur majoritairement bluffeur
 				else if (suiveurs[j] < bluffers[j] and bluffers[j] > bonJoueur[j]){
-					
+					return 1;
 				}
 				//joueur majoritairement sérieux
 				else{
-					
+					return 2;
 				}
 			}
 			return 0;
+		}
+		/**
+		 * return 0 si on sait qu'il n'y a aucun joueur sérieux, soit de base, soit ils sont tous couchés
+		 * return 1 si on a des sérieux à la table, mais qu'ils ne sont pas à l'origine de la relance ET qu'ils n'ont pas encore parlé car après nous
+		 * return 2 si c'est un joueur sérieux qui a relancé OU suivi la relance d'un autre joueur
+		 */
+		action presenceSerieux{
+			bool pasDeSerieux <- true;
+			bool relance <- false;
+			loop j over: joueurs{
+				//Si on a un joueur sérieux
+				if(typeJoueur(j) = 2){
+					pasDeSerieux <- false;
+					//Si en plus il a misé, on sait donc qu'un joueur considéré comme sérieux suit ou relance -> attention
+					if(j.miseCourante > 0){
+						relance <- true;
+					}
+				}				
+			} 
+			if(pasDeSerieux){
+				return 0;
+			}
+			else if(!pasDeSerieux and !relance){
+				return 1;
+			}
+			else if(!pasDeSerieux and relance){
+				return 2;
+			}
 		}		
 		
 		reflex choisir_action when: jeton {
