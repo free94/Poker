@@ -3544,12 +3544,13 @@ entities {
 	 * Le JoueurProbabiliste décide son action (suivre/coucher) suivant une comparaison de l'espérance à avoir en cas de gagant/perdant
 	 */
 	species JoueurProbabiliste parent : Joueur{
-		//TODO
 		//les types de meilleur combinaison de notre main et de celle de notre adversaire
 		int type_meilleure_combinaison_joueur <- -1;
 		int type_meilleure_combinaison_adv <- -1;
-		//compteur
-		int compteur <- 0;
+		//probabilité totale pour gagner
+		float proba_gagner <- 0.0;
+		//nombre de comparaison effectuées
+		int nb_comparaison <- 0;
 		//les chances à gagner pour chaque type de main
 		list chances_gagner <- [] of : float;
 		//les chances à perdre pour chaque type de main
@@ -3565,17 +3566,20 @@ entities {
 				let main_adv type:list<int> <- (mains_adv at index);
 				//comparer la valeur de la main de notre adversaire avec la notre
 				//remplacer notre main avec celle de notre adversaire pour faire le calcul (notre main sera etre restitué à la fin)
-				type_meilleure_combinaison_adv <- self trouver_type_meilleure_combinaison_adv[main_adv];
-				type_meilleure_combinaison_joueur <- self trouver_type_meilleure_combinaison_adv[main];
-				//TODO if...
-				
-				
+				set type_meilleure_combinaison_adv <-  self trouver_type_meilleure_combinaison_adv[main_adversaire::main_adv];
+				set type_meilleure_combinaison_joueur <- self trouver_type_meilleure_combinaison_adv[main_adversaire::main];
+				if(type_meilleure_combinaison_adv > type_meilleure_combinaison_joueur){
+					chances_perdre[type_meilleure_combinaison_adv] <- (1.0+chances_perdre[type_meilleure_combinaison_adv]);
+				}else if(type_meilleure_combinaison_adv = type_meilleure_combinaison_joueur){
+					chances_perdre[type_meilleure_combinaison_adv] <- (0.5+chances_perdre[type_meilleure_combinaison_adv]);
+					chances_gagner[type_meilleure_combinaison_joueur] <- (0.5+chances_perdre[type_meilleure_combinaison_joueur]);
+				}else{
+					chances_gagner[type_meilleure_combinaison_joueur] <- (1.0+chances_perdre[type_meilleure_combinaison_joueur]);
+				}				
 			}
 			
-			
-			// On regarde si l'agent est dans la capacit� de relancer
-			
 		}
+		
 		/*
 		 * Retourner tous les mains possible d'un de nos adversaires
 		 * un maine = une liste de int
@@ -3617,12 +3621,13 @@ entities {
 			//Remplacer notre main par celle de l'adversaire afin de permettre l'évaluation
 			main <- main_adversaire;
 			// Si on n'a pas encore pass� le pr�-flop, la combinaison n'est constitu�e que de notre
-			int type_adv;
+			int type_adv <- -1;
 			// main
 			if(world.etape > 0) {
 				ask world {
-					type_adv <- trouver_meilleure_combinaison joueur : joueurs index_of (myself);
+					do trouver_meilleure_combinaison joueur : joueurs index_of (myself);
 				}
+				type_adv <- self.type_meilleure_combinaison;
 				//resituer notre main
 				main <- main_copie;
 				return type_adv;
@@ -3653,14 +3658,13 @@ entities {
 				//resituer notre main
 				main <- main_copie;
 				return type_adv;
-			}
-			
-			
+			}			
 		}
 		
 		
 		
 	}
+
 }
 	
 
