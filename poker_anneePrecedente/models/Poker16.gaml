@@ -10,7 +10,7 @@ global {
 	/**
 	 * Nombre de joueurs � la table
 	 */
-	int nb_joueurs <- 5 min : 2 max : 10;
+	int nb_joueurs <- 6 min : 2 max : 10;
 	
 	/**
 	 * Argent de d�part pour chaque joueur
@@ -57,7 +57,7 @@ global {
 	/**
 	 * Ajouter ici les parts des diff�rents agents � cr�er
 	 */
-	map partsAgents <- [1::0.0, 2::0.0, 3::0.1, 4::0.1, 5::0.1, 6::0.1, 7::0.0, 8::0.1, 9::0.0];
+	map partsAgents <- [1::0.0, 2::0.0, 3::0.1, 4::0.1, 5::0.1, 6::0.1, 7::0.0, 8::0.1, 9::0.1];
 	
 	/**
 	 * Map utilis�e pour contrer le fait qu'une map contenant directement des pairs (species::part) ne marche
