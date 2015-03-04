@@ -3627,7 +3627,7 @@ entities {
 			//Remplacer notre main par celle de l'adversaire afin de permettre l'évaluation
 			main <- main_adversaire;
 			// Si on n'a pas encore pass� le pr�-flop, la combinaison n'est constitu�e que de notre
-			int type_adv;
+			int type_adv <- 0;
 			// main
 			if(world.etape > 0) {
 				ask world {
