@@ -3637,12 +3637,13 @@ entities {
 					chances_gagner[type_meilleure_combinaison_joueur] <- (1.0+chances_perdre[type_meilleure_combinaison_joueur]);
 				}			
 			}
+			//retituer notre main par les cartes initiales
+			main <- main_joueur;
 			//Calculer la probabilité à gagner et les espérences
 			loop indexChance from : 0 to : length(chances_gagner) - 1 {
 				proba_gagner <- proba_gagner+(chances_gagner at indexChance);
 			}
 			proba_gagner <- proba_gagner/length(mains_adv);
-			write "\t"+proba_gagner+"##################";
 			let esperance_gagner type:float <-proba_gagner*pot;
 			let esperance_perdre type:float <-(1-proba_gagner)*(miseGlobale - self.mise);
 			if(esperance_gagner>esperance_perdre){
