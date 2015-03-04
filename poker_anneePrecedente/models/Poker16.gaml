@@ -3384,6 +3384,8 @@ entities {
 				}				
 			} 
 			if(pasDeSerieux){
+				write "pas de sérieux LES GARS---------------";
+				write "" + bonJoueur;
 				return 0;
 			}
 			else if(!pasDeSerieux and !relance){
@@ -3545,10 +3547,25 @@ entities {
 				if( type_meilleure_combinaison >= 1){
 					//S'il y a déjà eu des mises ATTENTION
 					if(miseGlobale - self.mise > 0){
-						//On reste uniquement si on a mieux qu'une paire
-						if( type_meilleure_combinaison > 1){
-							//write "suit avec mieux qu'une paire";
-							do miser valeur : miseGlobale - self.mise;
+						//On reste uniquement si on a mieux qu'une paire OU qu'il n'y a déjà plus de joueurs "sérieux"
+						if( type_meilleure_combinaison > 1 and presenceSerieux() = 0){
+							if(type_meilleure_combinaison > 2 ){
+								do miser valeur : argent;
+								
+								ask world {
+                					do pause;
+                					write "-*-*-*-*-on tente le TAPIS-*-*-*-*-";
+									
+            					}
+            					loop j over : joueurs{
+									write "" + j + " type " + typeJoueur(j) + " pS " + presenceSerieux();	
+								}
+								self.tapis <- true;	
+							}
+							else{							
+								//write "suit avec mieux qu'une paire";
+								do miser valeur : miseGlobale - self.mise;							
+							}
 						}
 						//Sinon on se couche
 						else{
@@ -3557,8 +3574,8 @@ entities {
 					}
 					//S'il n'y a pas eu encore de mise
 					else{
-						//Mise si mieux qu'une paire
-						if(type_meilleure_combinaison > 1){
+						//Mise si mieux qu'une paire ou aucun joueur "sérieux"
+						if(type_meilleure_combinaison > 1 or presenceSerieux() = 0){
 							//write "on mise car mieux qu'une paire";
 							do miser valeur : 3*blind;
 						}
@@ -3568,7 +3585,9 @@ entities {
 						}
 					}
 				}
+				//Si on a moins qu'une paire, et qu'il y a des mises, quoi qu'il arrive on ne tente pas les deux prochaines cartes
 				else{
+					//si pas de mises on suit
 					if((miseGlobale - self.mise) = 0){
 						do miser valeur : 0;
 					}
