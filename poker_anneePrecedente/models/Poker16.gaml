@@ -3621,12 +3621,13 @@ entities {
 			chances_perdre <- [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
 			//Tous les mains possibles d'un de nos adversaires
 			let mains_adv type:list <- self mains_adverse[];
+			let main_joueur type:list<int> <- main;
 			loop index from : 0 to : length(mains_adv) - 1 {
 				let main_adv type:list<int> <- (mains_adv at index);
 				//comparer la valeur de la main de notre adversaire avec la notre
 				//remplacer notre main avec celle de notre adversaire pour faire le calcul (notre main sera etre restitué à la fin)
 				set type_meilleure_combinaison_adv <-  self trouver_type_meilleure_combinaison_adv[main_adversaire::main_adv];
-				set type_meilleure_combinaison_joueur <- self trouver_type_meilleure_combinaison_adv[main_adversaire::main];
+				set type_meilleure_combinaison_joueur <- self trouver_type_meilleure_combinaison_adv[main_adversaire::main_joueur];
 				if(type_meilleure_combinaison_adv > type_meilleure_combinaison_joueur){
 					chances_perdre[type_meilleure_combinaison_adv] <- (1.0+chances_perdre[type_meilleure_combinaison_adv]);
 				}else if(type_meilleure_combinaison_adv = type_meilleure_combinaison_joueur){
@@ -3634,7 +3635,27 @@ entities {
 					chances_gagner[type_meilleure_combinaison_joueur] <- (0.5+chances_perdre[type_meilleure_combinaison_joueur]);
 				}else{
 					chances_gagner[type_meilleure_combinaison_joueur] <- (1.0+chances_perdre[type_meilleure_combinaison_joueur]);
-				}				
+				}			
+			}
+			//Calculer la probabilité à gagner et les espérences
+			loop indexChance from : 0 to : length(chances_gagner) - 1 {
+				proba_gagner <- proba_gagner+(chances_gagner at indexChance);
+			}
+			proba_gagner <- proba_gagner/length(mains_adv);
+			write "\t"+proba_gagner+"##################";
+			let esperance_gagner type:float <-proba_gagner*pot;
+			let esperance_perdre type:float <-(1-proba_gagner)*(miseGlobale - self.mise);
+			if(esperance_gagner>esperance_perdre){
+				//Décider de suivre si esperance_gagner est plus grand que esperance_perdre
+				if((miseGlobale - self.mise) <= argent) {
+					do miser valeur : (miseGlobale - self.mise);
+				}
+				else {
+					do miser valeur : argent;
+				}
+			}else {
+				//Si non, on prend pas de risque
+				do se_coucher;
 			}
 			
 		}
@@ -3656,14 +3677,16 @@ entities {
 					//1ere carte dans la main
 					add carte1 to: main_adv;
 					//identifier la deuxieme carte
-					loop index2 from : (index+1) to : length(deck) - 1 {
-						if((main contains carte1) or (cartes_communes contains carte1)){
+					if((index+1) < length(deck)){
+						loop index2 from : (index+1) to : length(deck) - 1 {
+						if((main contains (deck at index2)) or (cartes_communes contains (deck at index2))){
 							//Si cette carte est déja présenté dans la main du joueur ou sur la table, il ne peut pas être utilisé par l'adversaire
 						}else{
 							add (deck at index2) to: main_adv;
 							add copy(main_adv) to:mains;
 							remove (main_adv at 1) from: main_adv;
 						}
+					}
 					}
 				}
 			}
