@@ -1209,7 +1209,474 @@ global {
 	}
 	
 	/**
-	 * Compare les deux m�mes combinaisons pass�es en param�tre.
+	 * Evaluer le "pontentiel" d'une main, elle aura pour valeur de retour une liste de int, dont 
+	 * -le permier représente le type de meilleur combinaison possbile(même idée que trouver_meilleure_combinaison)
+	 * -le 2eme représente le nombre de cartes de notre main qui peuvent être utilisées pour former la combinaison
+	 * -le 3eme represente le pontentiel le plus haut de notre main, càd le type de meilleur combinaison qu'elle peut former avec les cartes sur la table en ayant une carte en plus (donc pour le dernier tour cette valeur doit être equal à la 1ere valeur de retour)
+	 * -le 4eme représente si tous nos deux cartes sont de même couleur (il vaut donc soit 0 soit 1)
+	 * -le 5eme représente le nombre de cartes dans les cartes publics qui sont de même couleur à toutes les cartes dans notre main (donc non nul qu'au cas où le 4eme valeur de retour est 1)
+	 */
+	 action evaluer_main type: list{
+	 	arg joueur_actuel type : int;
+	 	//La liste à retourner
+	 	list<int> resultat_list <- [0, 0, 0, 0, 0];
+	 	//les nouvelles cartes communes possibles
+	 	list<int> list_nv_cartes_communes <- [];
+	 	//la meilleur combinaison pontentielle
+	 	list<int> meilleure_combinaison_possible <- [];
+	 	//couleur
+	 	int couleur_main <- 0;
+	 	
+	 	//mettre la 1ere valeur de retour
+	 	resultat_list[0] <- self trouver_meilleure_combinaison[joueur::joueur_actuel];
+	 	//mettre la 2eme valeur de retour
+	 	int nb_cartes_main <- 0;
+	 	loop carte1 over: (joueurs at joueur_actuel).main {
+	 		loop carte2 over: (joueurs at joueur_actuel).meilleure_combinaison {
+	 			if(carte1 = carte2){
+	 				nb_cartes_main <- nb_cartes_main+1;
+	 			}
+	 		}
+	 	}
+	 	resultat_list[1] <- nb_cartes_main;
+	 	//mettre la 3eme valeur de retour
+	 	if(length(cartes_communes) = 5){
+	 		//Si on a déja 5 carts sur la table, impossible d'avoir plus
+	 		resultat_list[2] <- resultat_list[0];
+	 	}else{
+	 		//liste de toutes les cartes qu'on peut avoir pour la prochaine carte commune
+	 		let list_prochaine_carte_commune type : list of : int <- [];
+	 		loop carte_possible over: deck{
+	 			if(((joueurs at joueur_actuel).main contains carte_possible) or (cartes_communes contains carte_possible)){
+	 			}else{
+	 				list_nv_cartes_communes <- copy(cartes_communes);
+	 				add carte_possible to: list_nv_cartes_communes;
+	 				let type_tmp type: int <- self trouver_meilleure_combinaison_personnalisee[joueur::joueur_actuel,list_cartes_communes::list_nv_cartes_communes];
+	 				if(type_tmp>resultat_list[0]){
+	 					resultat_list[2]<-type_tmp;
+	 					meilleure_combinaison_possible<-(joueurs at joueur_actuel).meilleure_combinaison;
+	 				}
+	 			}
+	 		}
+	 	}
+	 	//mettre la 4eme valeur de retour
+	 	if(floor(((joueurs at joueur_actuel).main at 0)/100) = floor(((joueurs at joueur_actuel).main at 1)/100)){
+	 		resultat_list[3] <- 1;
+	 		couleur_main <- floor(((joueurs at joueur_actuel).main at 0)/100);
+	 	}else{
+	 		resultat_list[3] <- 0;
+	 	}
+	 	//mettre la 5eme valeur de retour
+	 	if(resultat_list[3] = 1){
+	 		loop carte11 over: (joueurs at joueur_actuel).meilleure_combinaison{
+	 			let couleur_carte_combinaison <- floor(carte11/100);
+	 			if(couleur_carte_combinaison = couleur_main){
+	 				resultat_list[4] <- (resultat_list[4]+1);
+	 			}
+	 		}
+	 		//on retire les deux cartes de notre main qu'on a recompté
+	 		resultat_list[4] <- (resultat_list[4]-2);
+	 	}else{
+	 		resultat_list[4] <- 0;
+	 	}
+	 	//Remet la vraie meilleur combinaison pour le joueur actuel
+	 	do trouver_meilleure_combinaison with : [joueur :: joueur_actuel];
+	 	return resultat_list;
+	 }
+	 
+	 
+	 /**
+	  * Permet de trouver la meilleure combinaison pour un joueur donnée avec une list_cartes_communes personnalisable
+	  */
+	 action trouver_meilleure_combinaison_personnalisee type : int {
+		arg joueur type : int;
+		arg list_cartes_communes type: list<int>;
+		// On part de la meilleure combinaison et on cherche vers les
+		// moins bonnes au f�r et � mesure
+		let cartes_dispo type : list of : int <- [];
+		add ((joueurs at joueur).main at 0) to : cartes_dispo; 
+		add ((joueurs at joueur).main at 1) to : cartes_dispo;
+		loop carte over : list_cartes_communes {
+			add carte to : cartes_dispo;
+		}
+		
+		// On r�cup�re les ensemble de mains possibles
+		let liste_mains type : list <- [];
+		set liste_mains <- self get_combinaisons [cartes::cartes_dispo];
+		
+		let meilleure_main type : list of : int <- [];
+
+		
+		// --- Quinte flush ---
+		loop main over : liste_mains {
+			// On regarde s'il y a un flush
+			let liste type : list of : int <- main as list;
+			
+			let old_color type : int <- floor((liste at 0)/100);
+			let flush type : bool <- true;
+			loop index from : 1 to : length(liste) - 1 {
+				let color type : int <- floor((liste at index)/100);
+				
+				if(color != old_color) {
+					set flush <- false;
+				}
+			}
+			
+			// C'est un flush, on regarde si c'est une suite
+			if(flush) {
+				// On enl�ve l'information de couleur
+				let listeMod type : list of : int <- copy(liste);
+				loop index from : 0 to : length(listeMod) - 1 {
+					let couleur type : int <- floor((listeMod at index)/100)*100;
+					put listeMod at index - couleur at : index in : listeMod;
+				}
+				set listeMod <- listeMod sort_by(each);
+				
+				// On regarde si les quatres derni�res cartes sont dans l'ordre
+				// (� cause de l'As qui est particulier)
+				let suite type : bool <- true;
+				loop index from : 1 to : 3 {
+					if(listeMod at index != (listeMod at (index + 1)) - 1) {
+						set suite <- false;
+					} 
+				}
+				
+				// On regarde pour l'As
+				if(suite) {
+					if(!((listeMod at 0 = listeMod at 1 - 1) or (listeMod at 0 = 1 and listeMod at 4 = 13))) {
+						set suite <- false;
+					}
+					else {
+						// On a une suite et donc une quinte flush
+						if(meilleure_main = []) {
+							// Si on n'avait pas trouv� d'autre combinaison de ce type, c'est la meilleure
+							set meilleure_main <- liste;
+						}
+						else {
+							// On cherche laquelle est la meilleure
+							if(self compare_combinaison [combinaison :: 8, main1 :: copy(liste), main2 :: copy(meilleure_main)] = 1) {
+								set meilleure_main <- liste;
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		if(meilleure_main != []) {
+			set (joueurs at joueur).type_meilleure_combinaison <- 8;
+			set (joueurs at joueur).meilleure_combinaison <- meilleure_main;
+			return 8;
+		}
+
+		
+		// --- Carr� ---
+		loop main over : liste_mains {
+			let liste type : list of : int <- main as list;
+
+			// On enl�ve l'information de couleur
+			let listeMod type : list of : int <- copy(liste);
+			loop index from : 0 to : length(listeMod) - 1 {
+				let couleur type : int <- floor((listeMod at index)/100)*100;
+				put listeMod at index - couleur at : index in : listeMod;
+			}
+			set listeMod <- listeMod sort_by(each);
+						
+			let no_duplicates type : list of : int <- remove_duplicates(listeMod);
+			let carre type : bool <- false;
+			loop valeur over : no_duplicates {
+				if(listeMod count (each = valeur) = 4) {
+					set carre <- true;
+				}
+			}
+						
+			if(carre) {
+				if(meilleure_main = []) {
+					// Si on n'avait pas trouv� d'autre combinaison de ce type, c'est la meilleure
+					set meilleure_main <- liste;
+				}
+				else {
+					// On cherche laquelle est la meilleure
+					if(self compare_combinaison [combinaison :: 7, main1 :: copy(liste), main2 :: copy(meilleure_main)] = 1) {
+						set meilleure_main <- liste;
+					}
+				}
+			}
+		}
+		
+		if(meilleure_main != []) {
+			set (joueurs at joueur).type_meilleure_combinaison <- 7;
+			set (joueurs at joueur).meilleure_combinaison <- meilleure_main;
+			return 7;
+		}	
+		
+		
+		// --- Full House ---
+		loop main over : liste_mains {
+			let liste type : list of : int <- main as list;
+
+			// On enl�ve l'information de couleur
+			let listeMod type : list of : int <- copy(liste);
+			loop index from : 0 to : length(listeMod) - 1 {
+				let couleur type : int <- floor((listeMod at index)/100)*100;
+				put listeMod at index - couleur at : index in : listeMod;
+			}
+			set listeMod <- listeMod sort_by(each);
+			
+			if(listeMod at 0 = listeMod at 1 and listeMod at 3 = listeMod at 4) {
+				// On n'a plus qu'� v�rifier si la carte "du milieu" vaut une des deux autres
+				if(listeMod at 2 = listeMod at 0 or listeMod at 2 = listeMod at 4) {
+					if(meilleure_main = []) {
+						// Si on n'avait pas trouv� d'autre combinaison de ce type, c'est la meilleure
+						set meilleure_main <- liste;
+					}
+					else {
+						// On cherche laquelle est la meilleure
+						if(self compare_combinaison [combinaison :: 6, main1 :: copy(liste), main2 :: copy(meilleure_main)] = 1) {
+							set meilleure_main <- liste;
+						}
+					}
+				}
+			}
+		}
+		
+		if(meilleure_main != []) {
+			set (joueurs at joueur).type_meilleure_combinaison <- 6;
+			set (joueurs at joueur).meilleure_combinaison <- meilleure_main;
+			return 6;
+		}	
+		
+		
+		// --- Flush ---
+		loop main over : liste_mains {
+			let liste type : list of : int <- main as list;
+			
+			let old_color type : int <- floor((liste at 0)/100);
+			let flush type : bool <- true;
+			loop index from : 1 to : length(liste) - 1 {
+				let color type : int <- floor((liste at index)/100);
+				
+				if(color != old_color) {
+					set flush <- false;
+				}
+			}
+			
+			if(flush) {
+				if(meilleure_main = []) {
+					// Si on n'avait pas trouv� d'autre combinaison de ce type, c'est la meilleure
+					set meilleure_main <- liste;
+				}
+				else {
+					// On cherche laquelle est la meilleure
+					if(self compare_combinaison [combinaison :: 5, main1 :: copy(liste), main2 :: copy(meilleure_main)] = 1) {
+						set meilleure_main <- liste;
+					}
+				}
+			}
+		}
+		
+		if(meilleure_main != []) {
+			set (joueurs at joueur).type_meilleure_combinaison <- 5;
+			set (joueurs at joueur).meilleure_combinaison <- meilleure_main;
+			return 5;
+		}	
+		
+		
+		// --- Suite ---
+		loop main over : liste_mains {
+			let liste type : list of : int <- main as list;
+
+			// On enl�ve l'information de couleur
+			let listeMod type : list of : int <- copy(liste);
+			loop index from : 0 to : length(listeMod) - 1 {
+				let couleur type : int <- floor((listeMod at index)/100)*100;
+				put listeMod at index - couleur at : index in : listeMod;
+			}
+			set listeMod <- listeMod sort_by(each);
+			
+			// On regarde si les quatres derni�res cartes sont dans l'ordre
+			// (� cause de l'As qui est particulier)
+			let suite type : bool <- true;
+			loop index from : 1 to : 3 {
+				if(listeMod at index != (listeMod at (index + 1)) - 1) {
+					set suite <- false;
+				} 
+			}
+			
+			// On regarde pour l'As
+			if(suite) {
+				if(!((listeMod at 0 = (listeMod at 1) - 1) or (listeMod at 0 = 1 and listeMod at 4 = 13))) {
+					set suite <- false;
+				}
+				else {
+					// On a une suite et donc une quinte flush
+					if(meilleure_main = []) {
+						// Si on n'avait pas trouv� d'autre combinaison de ce type, c'est la meilleure
+						set meilleure_main <- liste;
+					}
+					else {
+						// On cherche laquelle est la meilleure
+						if(self compare_combinaison [combinaison :: 4, main1 :: copy(liste), main2 :: copy(meilleure_main)] = 1) {
+							set meilleure_main <- liste;
+						}
+					}
+				}
+			}
+		}
+		
+		if(meilleure_main != []) {
+			set (joueurs at joueur).type_meilleure_combinaison <- 4;
+			set (joueurs at joueur).meilleure_combinaison <- meilleure_main;
+			return 4;
+		}	
+		
+		
+		// --- Brelan ---
+		loop main over : liste_mains {
+			let liste type : list of : int <- main as list;
+
+			// On enl�ve l'information de couleur
+			let listeMod type : list of : int <- copy(liste);
+			loop index from : 0 to : length(listeMod) - 1 {
+				let couleur type : int <- floor((listeMod at index)/100)*100;
+				put listeMod at index - couleur at : index in : listeMod;
+			}
+			set listeMod <- listeMod sort_by(each);
+			
+			let no_duplicates type : list of : int <- remove_duplicates(listeMod);
+			let brelan type : bool <- false;
+			loop valeur over : no_duplicates {
+				if(listeMod count (each = valeur) = 3) {
+					set brelan <- true;
+				}
+			}
+			
+			if(brelan) {
+				if(meilleure_main = []) {
+					// Si on n'avait pas trouv� d'autre combinaison de ce type, c'est la meilleure
+					set meilleure_main <- liste;
+				}
+				else {
+					// On cherche laquelle est la meilleure
+					if(self compare_combinaison [combinaison :: 3, main1 :: copy(liste), main2 :: copy(meilleure_main)] = 1) {
+						set meilleure_main <- liste;
+					}
+				}
+			}
+		}
+		
+		if(meilleure_main != []) {
+			set (joueurs at joueur).type_meilleure_combinaison <- 3;
+			set (joueurs at joueur).meilleure_combinaison <- meilleure_main;
+			return 3;
+		}	
+		
+		
+		// --- Double Pair ---
+		loop main over : liste_mains {
+			let liste type : list of : int <- main as list;
+
+			// On enl�ve l'information de couleur
+			let listeMod type : list of : int <- copy(liste);
+			loop index from : 0 to : length(listeMod) - 1 {
+				let couleur type : int <- floor((listeMod at index)/100)*100;
+				put listeMod at index - couleur at : index in : listeMod;
+			}
+			set listeMod <- listeMod sort_by(each);
+			
+			let nb_identique type : int <- 0;
+			loop index from : 1 to : length(listeMod) - 1 {
+				if(listeMod at index = listeMod at (index - 1)) {
+					set nb_identique <- nb_identique + 1;
+				}
+			}
+			
+			if(nb_identique = 2) {
+				if(meilleure_main = []) {
+					// Si on n'avait pas trouv� d'autre combinaison de ce type, c'est la meilleure
+					set meilleure_main <- liste;
+				}
+				else {
+					// On cherche laquelle est la meilleure
+					if(self compare_combinaison [combinaison :: 2, main1 :: copy(liste), main2 :: copy(meilleure_main)] = 1) {
+						set meilleure_main <- liste;
+					}
+				}
+			}
+		}
+		
+		if(meilleure_main != []) {
+			set (joueurs at joueur).type_meilleure_combinaison <- 2;
+			set (joueurs at joueur).meilleure_combinaison <- meilleure_main;
+			return 2;
+		}	
+		
+		
+		// --- Pair ---
+		loop main over : liste_mains {
+			let liste type : list of : int <- main as list;
+
+			// On enl�ve l'information de couleur
+			let listeMod type : list of : int <- copy(liste);
+			loop index from : 0 to : length(listeMod) - 1 {
+				let couleur type : int <- floor((listeMod at index)/100)*100;
+				put listeMod at index - couleur at : index in : listeMod;
+			}
+			set listeMod <- listeMod sort_by(each);
+			
+			let nb_identique type : int <- 0;
+			loop index from : 1 to : length(listeMod) - 1 {
+				if(listeMod at index = listeMod at (index - 1)) {
+					set nb_identique <- nb_identique + 1;
+				}
+			}
+			
+			if(nb_identique = 1) {
+				if(meilleure_main = []) {
+					// Si on n'avait pas trouv� d'autre combinaison de ce type, c'est la meilleure
+					set meilleure_main <- liste;
+				}
+				else {
+					// On cherche laquelle est la meilleure
+					if(self compare_combinaison [combinaison :: 1, main1 :: copy(liste), main2 :: copy(meilleure_main)] = 1) {
+						set meilleure_main <- liste;
+					}
+				}
+			}
+		}
+		
+		if(meilleure_main != []) {
+			set (joueurs at joueur).type_meilleure_combinaison <- 1;
+			set (joueurs at joueur).meilleure_combinaison <- meilleure_main;
+			return 1;
+		}
+
+
+		// --- Carte haute ---
+		loop main over : liste_mains {
+			let liste type : list of : int <- main as list;
+			
+			if(meilleure_main = []) {
+				// Si on n'avait pas trouv� d'autre combinaison de ce type, c'est la meilleure
+				set meilleure_main <- liste;
+			}
+			else {
+				// On cherche laquelle est la meilleure
+				if(self compare_combinaison [combinaison :: 0, main1 :: copy(liste), main2 :: copy(meilleure_main)] = 1) {
+					set meilleure_main <- liste;
+				}
+			}
+		}
+
+		// On a forc�ment trouv� une main avec une carte haute		
+		set (joueurs at joueur).type_meilleure_combinaison <- 0;
+		set (joueurs at joueur).meilleure_combinaison <- meilleure_main;
+		return 0;
+	}
+	
+	 
+	 
+	/*
 	 * Retourne 1 si celle du joueur 1 est meilleure, -1 si c'est celle
 	 * du joueur 2 et 0 s'il y a �galit�. 
 	 */
@@ -3658,6 +4125,11 @@ entities {
 				//Si non, on prend pas de risque
 				do se_coucher;
 			}
+			//ask world {
+			//	let liste_test type: list <- self evaluer_main[joueur_actuel:: (joueurs index_of (myself))];
+			//	write liste_test;
+			//}
+			
 			
 		}
 		
