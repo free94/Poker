@@ -2858,6 +2858,7 @@ entities {
 			draw  "J " + string(all_joueurs index_of self) + " : " + string(species_of(self)) color : rgb("white") size : 10 at : my location - {0, 35};
 			draw " " + positionToString(maPosition()) color : rgb("magenta") size : 10 at : my location - {0, 25};
 			
+			
 			// On affiche la main du joueur
 			if(length(main) >= 2) {
 				int main1 <- (main at 0);
@@ -4081,6 +4082,7 @@ entities {
 		list chances_gagner <- [] of : float;
 		//les chances à perdre pour chaque type de main
 		list chances_perdre <- [] of : float;
+		//La probabilité à gagner pour ce tour, utilisable pour l'affichage
 		reflex choisir_action when:(jeton=true) 
 		{
 			//initialiser les valeurs pour les attributs
@@ -4125,12 +4127,21 @@ entities {
 				//Si non, on prend pas de risque
 				do se_coucher;
 			}
-			//ask world {
-			//	let liste_test type: list <- self evaluer_main[joueur_actuel:: (joueurs index_of (myself))];
-			//	write liste_test;
-			//}
+			
+//			xxx
+//			ask world {
+//				let liste_test type: list <- self evaluer_main[joueur_actuel:: (joueurs index_of (myself))];
+//				write liste_test;
+//			}
 			
 			
+		}
+		
+		aspect draw_proba{
+			//arrondi la proba à gagner à 3 chiffres après la virgule pour l'affichage
+			let proba_gagner_int <- round(proba_gagner*1000);
+			proba_gagner <- proba_gagner_int/1000.0;
+			draw  "Proba à gagner : " + string(proba_gagner) color : rgb("blue") size : 10 at : my location - {0, 15};
 		}
 		
 		/*
@@ -4271,6 +4282,7 @@ experiment PokerInterface type: gui {
 		display main{
 			image file: "../images/table.png" position : {0.0,0.0} size : {1,1};
 			agents Joueur value : all_joueurs;
+			species JoueurProbabiliste aspect: draw_proba;
 //			agents all_agents value : all_joueurs;
 			agents world value: world as list;
 			//agents main_agent value : world as list;
