@@ -10,7 +10,7 @@ global {
 	/**
 	 * Nombre de joueurs � la table
 	 */
-	int nb_joueurs <- 6 min : 2 max : 10;
+	int nb_joueurs <- 7 min : 2 max : 10;
 	
 	/**
 	 * Argent de d�part pour chaque joueur
@@ -57,13 +57,13 @@ global {
 	/**
 	 * Ajouter ici les parts des diff�rents agents � cr�er
 	 */
-	map partsAgents <- [1::0.0, 2::0.0, 3::0.1, 4::0.1, 5::0.1, 6::0.1, 7::0.0, 8::0.1, 9::0.1];
+	map partsAgents <- [1::0.0, 2::0.0, 3::0.1, 4::0.1, 5::0.1, 6::0.1, 7::0.0, 8::0.1, 9::0.1, 10::0.1];
 	
 	/**
 	 * Map utilis�e pour contrer le fait qu'une map contenant directement des pairs (species::part) ne marche
 	 * pas en param�tres. C'est un peu lourd mais �a permet de faire l'affaire
 	 */
-	map correspondance <- [1::JoueurZISuiveur, 2::JoueurZIAleatoire, 3::JoueurPrudent, 4::JoueurBluffer, 5::JoueurClassifieurSerre, 6::JoueurClassifieurLarge, 7::JoueurClassifieurPosition, 8::JoueurApprentissage, 9::JoueurProbabiliste];
+	map correspondance <- [1::JoueurZISuiveur, 2::JoueurZIAleatoire, 3::JoueurPrudent, 4::JoueurBluffer, 5::JoueurClassifieurSerre, 6::JoueurClassifieurLarge, 7::JoueurClassifieurPosition, 8::JoueurApprentissage, 9::JoueurProbabiliste, 10::JoueurApprentissage2];
 	
 	// ------ Joueurs ZIAl�atoires ------
 	/**
@@ -1210,7 +1210,7 @@ global {
 	
 	/**
 	 * Evaluer le "pontentiel" d'une main, elle aura pour valeur de retour une liste de int, dont 
-	 * -le permier représente le type de meilleur combinaison possbile(même idée que trouver_meilleure_combinaison)
+	 * -le permier représente le type de la meilleure combinaison possible(même idée que trouver_meilleure_combinaison)
 	 * -le 2eme représente le nombre de cartes de notre main qui peuvent être utilisées pour former la combinaison
 	 * -le 3eme represente le pontentiel le plus haut de notre main, càd le type de meilleur combinaison qu'elle peut former avec les cartes sur la table en ayant une carte en plus (donc pour le dernier tour cette valeur doit être equal à la 1ere valeur de retour)
 	 * -le 4eme représente si tous nos deux cartes sont de même couleur (il vaut donc soit 0 soit 1)
@@ -3851,8 +3851,8 @@ entities {
 				}				
 			} 
 			if(pasDeSerieux){
-				write "pas de sérieux LES GARS---------------";
-				write "" + bonJoueur;
+				//write "pas de sérieux LES GARS---------------";
+				//write "" + bonJoueur;
 				return 0;
 			}
 			else if(!pasDeSerieux and !relance){
@@ -4020,7 +4020,315 @@ entities {
 								do miser valeur : argent;
 								
 								ask world {
-                					do pause;
+                					//do pause;
+                					write "-*-*-*-*-on tente le TAPIS-*-*-*-*-";
+									
+            					}
+            					loop j over : joueurs{
+									write "" + j + " type " + typeJoueur(j) + " pS " + presenceSerieux();	
+								}
+								self.tapis <- true;	
+							}
+							else{							
+								//write "suit avec mieux qu'une paire";
+								do miser valeur : miseGlobale - self.mise;							
+							}
+						}
+						//Sinon on se couche
+						else{
+							do se_coucher;
+						}
+					}
+					//S'il n'y a pas eu encore de mise
+					else{
+						//Mise si mieux qu'une paire ou aucun joueur "sérieux"
+						if(type_meilleure_combinaison > 1 or presenceSerieux() = 0){
+							//write "on mise car mieux qu'une paire";
+							do miser valeur : 3*blind;
+						}
+						//Check sinon
+						else{
+							do miser valeur : 0;
+						}
+					}
+				}
+				//Si on a moins qu'une paire, et qu'il y a des mises, quoi qu'il arrive on ne tente pas les deux prochaines cartes
+				else{
+					//si pas de mises on suit
+					if((miseGlobale - self.mise) = 0){
+						do miser valeur : 0;
+					}
+					else{
+						do se_coucher;
+					}					
+				}
+			}							
+		}
+	}
+	
+	species JoueurApprentissage2 parent : Joueur{
+		map bluffers 			<- all_joueurs as_map (each::(0));
+		map suiveurs 			<- all_joueurs as_map (each::(0));
+		map bonJoueur 			<- all_joueurs as_map (each::(0));
+		
+		//matrix scoreJoueur 	<- 0.0 as_matrix ({nb_joueurs, 3});
+		
+		//reflexe pour les statistiques, appelé à la fin de chaque tour d'enchères
+		reflex stat when: infos{
+			
+			//on a les listes des suiveurs et bluffers observés par l'environnement mais dans le cas de ceux qui ne se sont pas couchés ! si couché => on n'a pu voir ses cartes
+			if(!empty(suiveur)){
+				loop j over: suiveur {					
+					suiveurs[j] <- suiveurs[j] +1;
+				}			
+			}
+			if(!empty(bluffer)){
+				loop j over: bluffer {					
+					bluffers[j] <- bluffers[j] +1;
+				}			
+			}
+			if(!empty(serieux)){
+				loop j over: serieux {					
+					bonJoueur[j] <- bonJoueur[j] +1;
+				}	
+			}
+			/*if(nombreTour mod 50 = 0){
+				write "\t" + suiveurs;
+				write "\t" + bluffers;
+			}*/
+			infos <- false;				
+		}	
+		/**
+		 * fonction permettant d'analyser les informations collectés pour déduire le type du joueur qu'on passe en paramètre
+		 * -1 pas d'infos
+		 * 0 pour suiveur
+		 * 1 pour bluffeur
+		 * 2 pour sérieux		 * 
+		 */
+		action typeJoueur {
+			arg j;
+			/**
+			 * Le nombre d'informations dont on dispose sur le joueur, pour permettre de faire un ratio 
+			 */
+			int nombreInfos <- suiveurs[j] + bluffers[j] + bonJoueur[j];
+			//Si on considère qu'on en sait pas assez, on dit qu'on a pas d'infos : idée de réalisme, on ne juge pas qu'un joueur est clairement un bluffeur sur un seul bluff
+			if (nombreInfos < 3){
+				return -1;
+			}
+			else{
+				//joueur majoritairement suiveur
+				if(suiveurs[j] > bluffers[j] and suiveurs[j] > bonJoueur[j]){
+					return 0;
+				}
+				//joueur majoritairement bluffeur
+				else if (suiveurs[j] < bluffers[j] and bluffers[j] > bonJoueur[j]){
+					return 1;
+				}
+				//joueur majoritairement sérieux
+				else{
+					return 2;
+				}
+			}
+			return 0;
+		}
+		/**
+		 * return 0 si on sait qu'il n'y a aucun joueur sérieux, soit de base, soit ils sont tous couchés
+		 * return 1 si on a des sérieux à la table, mais qu'ils ne sont pas à l'origine de la relance ET qu'ils n'ont pas encore parlé car après nous
+		 * return 2 si c'est un joueur sérieux qui a relancé OU suivi la relance d'un autre joueur
+		 */
+		action presenceSerieux{
+			bool pasDeSerieux <- true;
+			bool relance <- false;
+			loop j over: joueurs{
+				//Si on a un joueur sérieux
+				if(typeJoueur(j) = 2){
+					pasDeSerieux <- false;
+					//Si en plus il a misé, on sait donc qu'un joueur considéré comme sérieux suit ou relance -> attention
+					if(j.miseCourante > 0){
+						relance <- true;
+					}
+				}				
+			} 
+			if(pasDeSerieux){
+				//write "pas de sérieux LES GARS---------------";
+				//write "" + bonJoueur;
+				return 0;
+			}
+			else if(!pasDeSerieux and !relance){
+				return 1;
+			}
+			else if(!pasDeSerieux and relance){
+				return 2;
+			}
+		}		
+		
+		reflex choisir_action when: jeton {
+			bool paireServie<- false;
+			float force <- 0;
+			bool ass <- false;
+			bool tete <- false;
+			int type <- 0;
+			//ce comportement se joue énormément au pré flop
+			do meilleure_combinaison;
+			//voici ce qui change par rapport à l'agent Apprentissage précédent !
+			ask world {
+				let infos type: list <- self evaluer_main[joueur_actuel:: (joueurs index_of (myself))];
+				write infos;
+			}
+			if(etape = 0){
+				paireServie <- false;
+				//SI ON A UNE PAIRE SERVIE =D
+				if( type_meilleure_combinaison = 1) {
+					paireServie <- true;
+					//S'il y a eu une relance, on regarde de qui elle vient et de ce qu'on sait de ce joueur
+					if(miseGlobale - self.mise >= blind){
+						//Si le joueur à l'origine de la relance est considéré comme sérieux, il a surement une belle main !
+						loop j over: joueurRelance {
+							if(typeJoueur(j) = 2){
+								type <- 2;
+							}
+						}
+						//il y en a au moins un parmis les relances, qui est sérieux
+						if(type = 2){
+							if(miseGlobale - self.mise > 3*blind ){
+								//On suit donc uniquement si on a une paire au pire de 10
+								if([110,123,136,149] contains(self.main[0]) and [110,123,136,149] contains(self.main[1])){
+									do miser valeur : miseGlobale - self.mise;
+								}
+								else{
+									do se_coucher;
+								}							
+							}
+							else{
+								do miser valeur : miseGlobale - self.mise;
+							}							
+						}
+						//on considère qu'il n'y a aucun joueur sérieux sur cette relance, on va miser encore plus
+						else{
+							if((miseGlobale - self.mise) * 2 >= argent){
+								do miser valeur : argent;
+								self.tapis <- true;
+							}
+							else{
+								do miser valeur : (miseGlobale - self.mise) * 2;								
+							}
+						}			
+					}					
+					//s'il n'y a pas eu de relance
+					else{
+						do miser valeur : 3*blind;
+					}					
+				}
+				//Si on a PAS une paire servie :,(
+				else{
+					bool onlySuiveur <- true;
+					ass <- false;
+					do meilleure_combinaison;
+					let main_tmp type : list of : int <- copy(meilleure_combinaison);	
+					loop index from : 0 to : length(main_tmp) - 1 {
+						let couleur type : int <- floor((main_tmp at index)/100)*100;
+						put (main_tmp at index) - couleur at : index in : main_tmp;
+						
+						// cas particulier, l'as
+						if(main_tmp at index = 1) {
+							put 14 at : index in : main_tmp;
+							ass <- true;
+						}
+						if(main_tmp at index >= 11){
+							tete <- true;
+						}
+						force <- force + (main_tmp at index);
+					}
+					//si on est big blind et qu'il n'y a pas eu de relance
+					if(self.big_blind and miseGlobale = blind){
+						//s'il n'y a que des suiveurs à la table, ou qu'on a une bonne main, on profite d'avoir la parole pour relancer
+						loop j over: joueurs{
+							if(typeJoueur(j) != 0 and typeJoueur(j) != -1){
+								onlySuiveur <- false;
+							}
+						}
+						if((onlySuiveur and force >= 16) or (!onlySuiveur and force >= 23) ){
+							do miser valeur : 3* blind;
+						}
+						//sinon on check
+						else{
+							do miser valeur : 0;	
+						}						
+					}
+					else{						
+						//certaines combinaisons bien que faibles en valeur, peuvent être tentées car de même couleur
+						
+						int flush <- infos[3];
+						//si même couleur et une des mains suivantes go
+						if(flush = 1 and (main contains {4,7} or main contains {7,4} or main contains {5,7} or main contains {7,5} or main contains {6,5} or main contains {5,6}) ){
+							force <- 23;
+						}
+						
+						//Si on a une main suffisamment bonne	
+						//write "main " + main_tmp + " force : " + force;
+						if ((tete and force >= 16) or ( force >= 23)){
+							//S'il y a déjà eu des mises, et qu'on a assez d'argent
+							if((miseGlobale - self.mise) > 0 and (miseGlobale - self.mise)  < argent) {
+								if(miseGlobale > blind and force < 25){
+									do se_coucher;
+								}
+								else{
+									if((miseGlobale - self.mise) = blind and force >= 24){
+										do miser valeur : 3 * blind;
+									}
+									else{
+										do miser valeur : miseGlobale - self.mise;
+									}
+										
+								}								
+							}
+							//S'il y a déjà eu des mises et qu'on doit faire tapis
+							else if(((miseGlobale - self.mise) > 0) and (miseGlobale - self.mise) >= argent)  {
+								do miser valeur : argent;
+								self.tapis <- true;
+							}
+							//S'il n'y a pas eu de mise, depend de notre main
+							else{
+								if(force >= 25){
+									do miser valeur : 3*blind;
+								}
+								else{
+									do miser valeur : 0;	
+								}
+								
+							}
+						}
+						//Main insuffisante, on se couche
+						else{
+							do se_coucher;
+						}
+					}				
+				}
+			}
+			//post flop
+			if(etape > 0){
+				self.miseCourante <- 0;
+				do meilleure_combinaison;
+				//Si on a au moins une paire on reste
+				if( type_meilleure_combinaison >= 1){
+					//S'il y a déjà eu des mises ATTENTION
+					if(miseGlobale - self.mise > 0){
+						//On reste uniquement si on a mieux qu'une paire OU qu'il n'y a déjà plus de joueurs "sérieux"
+						if( type_meilleure_combinaison > 1 and presenceSerieux() = 0){
+							/*on reste si :
+							 * -On a une double paire grâce à nos deux cartes peu importe la configuration
+							 * -On a un brelan constitué par au moins une de nos cartes
+							 * -On a une quinte constituée d'au moins une de nos cartes
+							 * -On a une couleur constituée grâce à nos 2 cartes
+							 * et +
+							 */
+							int inf <- infos[1];
+							int type <- infos[0];
+							if((type = 3 and inf = 2) or (type = 4 and inf >= 1) or (type = 5 and inf = 2) or (type = 6 and inf = 2) or (type > 6)){
+								do miser valeur : argent;
+								
+								ask world {
+                					//do pause;
                 					write "-*-*-*-*-on tente le TAPIS-*-*-*-*-";
 									
             					}
