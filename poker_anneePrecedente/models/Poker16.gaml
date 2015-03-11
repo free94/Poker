@@ -236,6 +236,10 @@ global {
 	  * numéro du tour dans la partie
 	  */
 	  int nombreTour <- 0;
+	  /**
+	   * Varaible pour stocker les valeurs d'évaluation de la main actuelle
+	   */
+	   list<int> infoEvaluation <- [0, 0, 0, 0, 0];
 	/**
 	 * Initialisation de la simulation
 	 */
@@ -4173,7 +4177,7 @@ entities {
 			do meilleure_combinaison;
 			//voici ce qui change par rapport à l'agent Apprentissage précédent !
 			ask world {
-				let infos type: list <- self evaluer_main[joueur_actuel:: (joueurs index_of (myself))];
+				infoEvaluation <- self evaluer_main[joueur_actuel:: (joueurs index_of (myself))];
 				write infos;
 			}
 			if(etape = 0){
@@ -4259,7 +4263,7 @@ entities {
 					else{						
 						//certaines combinaisons bien que faibles en valeur, peuvent être tentées car de même couleur
 						
-						int flush <- infos[3];
+						int flush <- infoEvaluation[3];
 						//si même couleur et une des mains suivantes go
 						if(flush = 1 and (main contains {4,7} or main contains {7,4} or main contains {5,7} or main contains {7,5} or main contains {6,5} or main contains {5,6}) ){
 							force <- 23;
