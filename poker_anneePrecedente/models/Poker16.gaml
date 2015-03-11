@@ -4071,6 +4071,10 @@ entities {
 		}
 	}
 	
+	/** Ce joueur est identique au joueur apprentissage mais prend cette fois en compte des paramètres importants comme le nombre de cartes impliquées dans la formation d'une main,
+	 * le nombre de cartes du tableau permettant de constituer une couleur etc 
+	 */
+	 
 	species JoueurApprentissage2 parent : Joueur{
 		map bluffers 			<- all_joueurs as_map (each::(0));
 		map suiveurs 			<- all_joueurs as_map (each::(0));
@@ -4178,7 +4182,7 @@ entities {
 			//voici ce qui change par rapport à l'agent Apprentissage précédent !
 			ask world {
 				infoEvaluation <- self evaluer_main[joueur_actuel:: (joueurs index_of (myself))];
-				write infos;
+				//write infos;
 			}
 			if(etape = 0){
 				paireServie <- false;
@@ -4327,14 +4331,14 @@ entities {
 							 * -On a une couleur constituée grâce à nos 2 cartes
 							 * et +
 							 */
-							int inf <- infos[1];
-							int type <- infos[0];
+							int inf <- infoEvaluation[1];
+							int type <- infoEvaluation[0];
 							if((type = 3 and inf = 2) or (type = 4 and inf >= 1) or (type = 5 and inf = 2) or (type = 6 and inf = 2) or (type > 6)){
 								do miser valeur : argent;
 								
 								ask world {
                 					//do pause;
-                					write "-*-*-*-*-on tente le TAPIS-*-*-*-*-";
+                					//write "-*-*-*-*-on tente le TAPIS-*-*-*-*-";
 									
             					}
             					loop j over : joueurs{
