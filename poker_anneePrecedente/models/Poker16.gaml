@@ -4378,6 +4378,8 @@ entities {
 	/**
 	 * Le JoueurProbabiliste décide son action (suivre/coucher) suivant une comparaison de l'espérance à avoir en cas de gagant/perdant
 	 */
+	 species test skills:[moving]{}
+	 
 	species JoueurProbabiliste parent : Joueur{
 		//les types de meilleur combinaison de notre main et de celle de notre adversaire
 		int type_meilleure_combinaison_joueur <- -1;
