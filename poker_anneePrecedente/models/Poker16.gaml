@@ -4383,6 +4383,9 @@ entities {
 	 * Le JoueurProbabiliste décide son action (suivre/coucher) suivant une comparaison de l'espérance à avoir en cas de gagant/perdant
 	 */
 	species JoueurProbabiliste parent : Joueur{
+		//le seuil de sécurité
+		float seuil_securite <- 1.0;
+		
 		//les types de meilleur combinaison de notre main et de celle de notre adversaire
 		int type_meilleure_combinaison_joueur <- -1;
 		int type_meilleure_combinaison_adv <- -1;
@@ -4426,7 +4429,7 @@ entities {
 			}
 			proba_gagner <- proba_gagner/length(mains_adv);
 			let esperance_gagner type:float <-proba_gagner*pot;
-			let esperance_perdre type:float <-(1-proba_gagner)*(miseGlobale - self.mise);
+			let esperance_perdre type:float <-(1-proba_gagner)*(miseGlobale - self.mise)*seuil_securite;
 			if(esperance_gagner>esperance_perdre){
 				//Décider de suivre si esperance_gagner est plus grand que esperance_perdre
 				if((miseGlobale - self.mise) <= argent) {
