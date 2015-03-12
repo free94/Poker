@@ -8,6 +8,13 @@ model Poker
 
 global {
 	/**
+	 * Nombre de parties
+	 */
+	int nb_parties <- 50 min : 1 max : 100;
+	int compteur_parties <- 0;
+	int compteur_tours <- 0;
+	list<Joueur> tmp <- [];
+	/**
 	 * Nombre de joueurs � la table
 	 */
 	int nb_joueurs <- 7 min : 2 max : 10;
@@ -243,18 +250,34 @@ global {
 	/**
 	 * Initialisation de la simulation
 	 */
-	init {
+	 init{
+	 	do init2;
+	 }
+	action init2 {
 		// Ajouter ici la cr�ation des diff�rents agents
+		
+		if(nb_parties > 1 and compteur_parties >=1 ){
+			tmp <- all_joueurs;
+			write tmp;
+		}
 		loop pair over : partsAgents.pairs {
 			
 			int nbAgents <- round(float(pair.value) * nb_joueurs);
+			
 			let agents type : list <- [];
 			create species(correspondance at pair.key) number : nbAgents returns : agents;
 			
 			loop joueur over : agents as list {
-				add joueur to : joueurs;
+				add joueur to : joueurs;				
 			}
 		}
+		/*loop joueur over : joueurs as list {
+			if(nb_parties > 1 and compteur_parties >=1 ){
+				write joueur.logJoueur;
+				set joueur.logJoueur <- copy((tmp at joueur).logJoueur);
+			}
+		}*/
+		
 		write "nb_joueurs = " + nb_joueurs + "joueurs : " + joueurs;		
 		// Combler ici pour qu'on ait bien nb_joueurs (si jamais les floors malheureux
 		// ont cr�� moins de joueurs). Il est bien �vident pr�f�rable de s'arranger pour
@@ -282,7 +305,19 @@ global {
 		
 		set all_joueurs <- copy(joueurs);
 		do set_positions;
+		if(nb_parties > 1 and compteur_parties >=1 ){
+		loop joueur over : joueurs as list {
+			int t <- 0;
+			loop j over : joueurs as list {
+				if(joueur.type = j.type){
+					set joueur.logJoueur <- copy((tmp at t).logJoueur);
+				}
+				t <- t+1;
+			
+			}
+		}
 		
+		}
 		do init_partie;
 	}
 
@@ -295,11 +330,13 @@ global {
 	 * Arr�te la simulation quand on a trouv� le vainqueur
 	 */
 	reflex fin_vainqueur when: vainqueur != nil {
-		let messaget type : string <- "Joueur " + vainqueur + " a gagne !"; 
-		do tell message: messaget;
+		//let messaget type : string <- "Joueur " + vainqueur + " a gagne !"; 
+		(vainqueur).logJoueur[3] <- vainqueur.logJoueur[3] +1;
+		compteur_parties <- compteur_parties +1;
+		//do tell message: messaget;
 		
 		// On log les r�sultats de la simulation
-		list<int> log  <- [nb_joueurs, argent_init, blind, max_raises, limite_temps];
+		/*list<int> log  <- [nb_joueurs, argent_init, blind, max_raises, limite_temps];
 		let nom_log type : string <- "log";
 		
 		// On log les parts des diff�rents agents
@@ -324,9 +361,23 @@ global {
 			add -1 to : log;
 		}
 		
-		save log to: nom_log + ".csv" type: "csv";
+		save log to: nom_log + ".csv" type: "csv";*/
 		
-		do halt;
+		if(nb_parties = compteur_parties){			
+			write "-*-*-*-*-*-*-END-*-*-*-*-*-*-";
+			loop j over: all_joueurs{
+				write "" +j + " - " + j.logJoueur ;	
+				write "compteur " + compteur_parties;
+				write "manches " + compteur_tours;
+			}
+			do halt;			
+		}
+		else{
+			ask world{
+				do init2;
+			}			
+		}
+		
 	}
 	
 	/**
@@ -334,19 +385,19 @@ global {
 	 */
 	reflex fin_temps when: time >= limite_temps {
 		// Tous les joueurs encore en jeu sont consid�r�s � �galit�		
-		let messaget type: string <- "Les joueurs : ";
+		//let messaget type: string <- "Les joueurs : ";
 		
 		let index type : int <- 0;
 		loop while : index < length(joueurs) - 1 {
-			set messaget <- messaget + string(joueurs at index) + ", ";
+			(joueurs at index).logJoueur[4] <- (joueurs at index).logJoueur[4] +1; 
 			set index <- index + 1;
 		}
-		set messaget <- messaget + string(joueurs at index) + " sont � �galit� !";
+		//set messaget <- messaget + string(joueurs at index) + " sont � �galit� !";
 		 
-		do tell message: messaget;
+		//do tell message: messaget;
 		
 		// On log les r�sultats de la simulation
-		list<int> log <- [nb_joueurs, argent_init, blind, max_raises, limite_temps];
+		/*list<int> log <- [nb_joueurs, argent_init, blind, max_raises, limite_temps];
 		let nom_log type : string <- "log";
 		
 		// On log les parts des diff�rents agents
@@ -385,7 +436,23 @@ global {
 		
 		save log to: (nom_log + ".csv") type: "csv";
 		
-		do halt;
+		do halt;*/
+		if(nb_parties = compteur_parties){		
+			time <- 0;	
+			write "-*-*-*-*-*-*-END-*-*-*-*-*-*-";
+			loop j over: all_joueurs{
+				write "" +j + " - " + j.logJoueur ;	
+				write "compteur " + compteur_parties;
+				write "manches " + compteur_tours;
+			}
+			do halt;			
+		}
+		else{
+			time <- 0;
+			ask world{
+				do init2;
+			}			
+		}
 	}
 
 	/**
@@ -681,6 +748,8 @@ global {
 				}
 				set etape <- etape + 1;
 				write "\t" + joueurs at ((classement[0]) at 0) + " remporte la manche";
+				compteur_tours <- compteur_tours +1;
+				(joueurs at ((classement[0]) at 0)).logJoueur[0] <- (joueurs at ((classement[0]) at 0)).logJoueur[0] +1; 
 				loop j over : joueurs{
 					if (!(suiveur contains(j)) and !(bluffer contains(j))){
 						add j to: serieux;
@@ -2226,7 +2295,7 @@ global {
 				// Sinon on consid�re qu'il se couche et on prend
 				// sa mise parce que c'est pas bien de tricher
 				set (joueurs at joueur_courant).couche <- true;
-				write "*(fail) "+ joueurs at joueur_courant + " se couche";
+				//write "*(fail) "+ joueurs at joueur_courant + " se couche";
 			} 
 			else{
 				(joueurs at joueur_courant).miseCourante <- mise;
@@ -2239,6 +2308,7 @@ global {
 						//pour apprentissage : on indique que le joueur bluff sur ce tour -> relance
 						add joueurs at joueur_courant to : bluffer;
 						add joueurs at 0 to: joueurRelance;
+						(joueurs at joueur_courant).logJoueur[1] <- (joueurs at joueur_courant).logJoueur[1] +1;
 						//write "ça bluff sec : " + bluffer;
 					}					
 					// Ce joueur devient le nouveau "premier joueur"
@@ -2247,7 +2317,8 @@ global {
 				else{
 					if((joueurs at joueur_courant).type_meilleure_combinaison < 2 and miseGlobale > blind and (joueurs at joueur_courant).miseCourante > 0){
 						//pour apprentissage : on indique que le joueur suit sur ce tour
-						add joueurs at joueur_courant at : 0 to : suiveur;				
+						add joueurs at joueur_courant at : 0 to : suiveur;	
+						(joueurs at joueur_courant).logJoueur[2] <- (joueurs at joueur_courant).logJoueur[2] +1;			
 						//write "ça suit sec : " + suiveur;	
 					}
 				}	
@@ -2273,7 +2344,7 @@ global {
 				set premier_joueur <- joueur_suiv;
 				set pas_de_tour <- true;
 			}
-			write "\t" + joueurs at joueur_courant + " se couche";
+			//write "\t" + joueurs at joueur_courant + " se couche";
 		}
 		
 		// Si jamais tout le monde s'est couch� sauf un joueur
@@ -2479,6 +2550,16 @@ entities {
 		 * Main de cartes du joueur, repr�sent�e sous la forme d'un tableau de deux entiers.
 		 */
 		list main <- [] of : int;
+		int type <- 0;
+		/**
+		 * liste logJoueur[] : 
+		 * 0 -> nombre de tours remportés par le joueur
+		 * 1 -> nombre de bluffs
+		 * 2 -> nombre de suivis douteux
+		 * 3 -> nombre de victoires
+		 * 4 -> nombre d'égalités
+		 */
+		 list logJoueur <- [0,0,0,0,0] of : float;
 		
 		/**
 		 * La mise du joueur pour ce tour
@@ -2730,10 +2811,10 @@ entities {
 					do valider_mise with : [mise :: valeur, valeur_supp :: valeurSupp];
 				}
 				if(valeur = 0 and self.out = false){
-					write "\t" + self + " check";
+					//write "\t" + self + " check";
 				}
 				else{
-					write "\t" + self + " mise " + valeur;
+					//write "\t" + self + " mise " + valeur;
 				}
 				
 				do rendre_jeton;
@@ -2884,6 +2965,7 @@ entities {
 	 * peuvent pas, ils font tapis.
 	 */
 	species JoueurZISuiveur parent : Joueur {
+		int type <- 1;
 		reflex choisir_action when:(jeton=true) 
 		{
 			if((miseGlobale - self.mise) <= argent) {
@@ -2905,6 +2987,7 @@ entities {
 	 * les deux autres probabilit�s afin de ne pas faire une action impossible.
 	 */
 	species JoueurZIAleatoire parent : Joueur {
+		int type <- 2;
 		/**
 		 * Probabilit� de se coucher � chaque tour
 		 */
@@ -2962,6 +3045,7 @@ entities {
 	
 	
 	species JoueurPrudent parent : Joueur {
+		int type <- 3;
 		/**
 		 * Force de la main utilis�e lors du calcule de la valeur de relance
 		 */
@@ -3089,7 +3173,7 @@ entities {
 	
 	
 	species JoueurBluffer parent : Joueur {
-
+		int type <- 4;
 		/**
 		 * Force de la main utilis�e lors du calcule de la valeur de relance
 		 */
@@ -3302,7 +3386,7 @@ entities {
 	 * Ces règles sont détaillées dans le rapport et sont le résultat de la "fusion" de nombreuses stratégies recommandées.
 	 */
 	species JoueurClassifieurSerre parent : Joueur{		
-				
+		int type <- 5;		
 		reflex choisir_action when: jeton {
 			float force <- 0;
 			bool ass <- false;
@@ -3412,6 +3496,7 @@ entities {
 	 * Ces règles sont détaillées dans le rapport et sont le résultat de la "fusion" de nombreuses stratégies recommandées 
 	 */
 	species JoueurClassifieurLarge parent : Joueur{
+		int type <- 6;
 		reflex choisir_action when: jeton {
 			float force <- 0;
 			bool ass <- false;
@@ -3559,6 +3644,7 @@ entities {
 	 * Ces règles sont détaillées dans le rapport et sont le résultat de la "fusion" de nombreuses stratégies recommandées 
 	 */
 	species JoueurClassifieurPosition parent : Joueur{
+		int type <- 7;
 		action strat{
 			arg force type : int;
 			//S'il y a déjà eu des mises, et qu'on a assez d'argent
@@ -3774,6 +3860,7 @@ entities {
 	 * adversaires
 	 */
 	species JoueurApprentissage parent : Joueur{
+		int type <- 8;
 		map bluffers 			<- all_joueurs as_map (each::(0));
 		map suiveurs 			<- all_joueurs as_map (each::(0));
 		map bonJoueur 			<- all_joueurs as_map (each::(0));
@@ -4076,6 +4163,7 @@ entities {
 	 */
 	 
 	species JoueurApprentissage2 parent : Joueur{
+		int type <- 9;
 		map bluffers 			<- all_joueurs as_map (each::(0));
 		map suiveurs 			<- all_joueurs as_map (each::(0));
 		map bonJoueur 			<- all_joueurs as_map (each::(0));
@@ -4389,6 +4477,7 @@ entities {
 	 species test skills:[moving]{}
 	 
 	species JoueurProbabiliste parent : Joueur{
+		int type <- 10;
 		//le seuil de sécurité
 		float seuil_securite <- 1.0;
 		
@@ -4556,6 +4645,10 @@ entities {
 	
 
 experiment PokerInterface type: gui {
+	/**
+	 * Nombre de parties qu'on veut lancer (1 par défaut, + pour le besoin de l'analyse des simulations
+	 */
+	parameter "Nombre de parties" var: nb_parties category : "Global";
 	/**
 	 * Nombre de joueurs dans la partie
 	 */
