@@ -10,14 +10,14 @@ global {
 	/**
 	 * Nombre de parties
 	 */
-	int nb_parties <- 2 min : 1 max : 100;
+	int nb_parties <- 30 min : 1 max : 100;
 	int compteur_parties <- 0;
 	int compteur_tours <- 0;
 	list<Joueur> tmp <- [];
 	/**
 	 * Nombre de joueurs � la table
 	 */
-	int nb_joueurs <- 4 min : 2 max : 10;
+	int nb_joueurs <- 3 min : 2 max : 10;
 	
 	/**
 	 * Argent de d�part pour chaque joueur
@@ -64,7 +64,7 @@ global {
 	/**
 	 * Ajouter ici les parts des diff�rents agents � cr�er
 	 */
-	map partsAgents <- [1::0.0, 2::0.0, 3::0.0, 4::0.0, 5::0.25, 6::0.25, 7::0.0, 8::0.25, 9::0.0, 10::0.25];
+	map partsAgents <- [1::0.0, 2::0.0, 3::0.3, 4::0.3, 5::0.0, 6::0.0, 7::0.0, 8::0.3, 9::0.0, 10::0.0];
 	
 	/**
 	 * Map utilis�e pour contrer le fait qu'une map contenant directement des pairs (species::part) ne marche
@@ -368,10 +368,23 @@ global {
 		}
 		
 		save log to: nom_log + ".csv" type: "csv";*/
+		/* 0 -> nombre de tours remportés par le joueur
+		 * 1 -> nombre de bluffs
+		 * 2 -> nombre de suivis douteux
+		 * 3 -> nombre de victoires
+		 * 4 -> nombre d'égalités
+		 * 5 -> nombre tapis*/
 		
 		if(nb_parties = compteur_parties){			
 			write "-*-*-*-*-*-*-END-*-*-*-*-*-*-";
 			loop j over: all_joueurs{
+				j.logJoueur[0] <- (j.logJoueur[0] / compteur_tours ) * 100;
+				j.logJoueur[1] <- (j.logJoueur[1] / compteur_tours ) * 100;
+				j.logJoueur[2] <- (j.logJoueur[2] / compteur_tours ) * 100;
+				j.logJoueur[3] <- (j.logJoueur[3] / compteur_parties ) * 100;
+				j.logJoueur[4] <- (j.logJoueur[4] / compteur_parties ) * 100;
+				j.logJoueur[5] <- (j.logJoueur[5] / compteur_tours ) * 100;
+				
 				write "" +j + " - " + j.logJoueur ;					
 			}
 			write "compteur " + compteur_parties;
@@ -447,6 +460,13 @@ global {
 			time <- 0;	
 			write "-*-*-*-*-*-*-END-*-*-*-*-*-*-";
 			loop j over: all_joueurs{
+				j.logJoueur[0] <- (j.logJoueur[0] / compteur_tours ) * 100;
+				j.logJoueur[1] <- (j.logJoueur[1] / compteur_tours ) * 100;
+				j.logJoueur[2] <- (j.logJoueur[2] / compteur_tours ) * 100;
+				j.logJoueur[3] <- (j.logJoueur[3] / compteur_parties ) * 100;
+				j.logJoueur[4] <- (j.logJoueur[4] / compteur_parties ) * 100;
+				j.logJoueur[5] <- (j.logJoueur[5] / compteur_tours ) * 100;
+				
 				write "" +j + " - " + j.logJoueur ;	
 				write "compteur " + compteur_parties;
 				write "manches " + compteur_tours;
@@ -541,7 +561,7 @@ global {
 				do bruler_carte;
 				
 				// Et on �tale le flop
-				//write "\t--------FLOP--------";
+				write "\t--------FLOP--------";
 				add self pop_card [] to : cartes_communes;
 				add self pop_card [] to : cartes_communes;
 				add self pop_card [] to : cartes_communes;
@@ -596,7 +616,7 @@ global {
 				do bruler_carte;
 				
 				// Et on �tale le turn
-				//write "\t--------TURN-------";
+				write "\t--------TURN-------";
 				add self pop_card [] to : cartes_communes;
 				
 				// On d�finit le premier joueur :
@@ -649,7 +669,7 @@ global {
 				do bruler_carte;
 				
 				// Et on �tale la river
-				//write "\t--------RIVER-------";
+				write "\t--------RIVER-------";
 				add self pop_card [] to : cartes_communes;
 				
 				// On d�finit le premier joueur :
@@ -751,7 +771,7 @@ global {
 					set index <- index + 1;
 				}
 				set etape <- etape + 1;
-				//write "\t" + joueurs at ((classement[0]) at 0) + " remporte la manche";
+				write "\t" + joueurs at ((classement[0]) at 0) + " remporte la manche";
 				compteur_tours <- compteur_tours +1;
 				(joueurs at ((classement[0]) at 0)).logJoueur[0] <- (joueurs at ((classement[0]) at 0)).logJoueur[0] +1; 
 				loop j over : joueurs{
@@ -2187,7 +2207,7 @@ global {
 		if(vainqueur = nil) {
 			// Et on les distribue
 			nombreTour <- nombreTour + 1;
-			//write "************" + compteur_parties + "************\n--------PRE-FLOP--------";
+			write "************" + compteur_parties + "************\n--------PRE-FLOP--------";
 			do distribuer_mains;
 			
 			// On choisit le dealer, le small blind et big blind
@@ -2313,8 +2333,8 @@ global {
 						//pour apprentissage : on indique que le joueur bluff sur ce tour -> relance
 						add joueurs at joueur_courant to : bluffer;
 						add joueurs at 0 to: joueurRelance;
-						(joueurs at joueur_courant).logJoueur[1] <- (joueurs at joueur_courant).logJoueur[1] +1;
-						//write "ça bluff sec : " + bluffer;
+						(joueurs at joueur_courant).logJoueur[1] <- (joueurs at joueur_courant).logJoueur[1] +1;						
+						//write "ça bluff sec : " + (joueurs at joueur_courant).type_meilleure_combinaison;													
 					}					
 					// Ce joueur devient le nouveau "premier joueur"
 					set premier_joueur <- joueur_courant;
@@ -2349,7 +2369,7 @@ global {
 				set premier_joueur <- joueur_suiv;
 				set pas_de_tour <- true;
 			}
-			//write "\t" + joueurs at joueur_courant + " se couche";
+			write "\t" + joueurs at joueur_courant + " se couche";
 		}
 		
 		// Si jamais tout le monde s'est couch� sauf un joueur
@@ -2458,7 +2478,7 @@ global {
 		
 		// On supprime le joueur de la liste
 		remove joueur from : joueurs;
-		//write "" + joueur + " a perdu";
+		write "" + joueur + " a perdu";
 		// On regarde s'il ne reste pas qu'un joueur en jeu
 		if(length(joueurs) <= 1) {
 			if(length(joueurs) > 0) {
@@ -2817,10 +2837,10 @@ entities {
 					do valider_mise with : [mise :: valeur, valeur_supp :: valeurSupp];
 				}
 				if(valeur = 0 and self.out = false){
-					//write "\t" + self + " check";
+					write "\t" + self + " check";
 				}
 				else{
-					//write "\t" + self + " mise " + valeur;
+					write "\t" + self + " mise " + valeur;
 				}
 				
 				do rendre_jeton;
@@ -3524,7 +3544,6 @@ entities {
 				else{
 					//si on est big blind et qu'il n'y a pas eu de relance, on check
 					if(self.big_blind and miseGlobale = blind){
-						//write "big blind";
 						do miser valeur : 0;
 					}
 					else{
@@ -3712,7 +3731,6 @@ entities {
 				}
 				//Si on est big blind et qu'on a pas une main type paire servie, et que personne n'a relancé
 				else if(self.big_blind and miseGlobale = blind){
-					//write "big blind";
 					do miser valeur : 0;
 				}
 				else{
@@ -3950,8 +3968,6 @@ entities {
 				}				
 			} 
 			if(pasDeSerieux){
-				//write "pas de sérieux LES GARS---------------";
-				//write "" + bonJoueur;
 				return 0;
 			}
 			else if(!pasDeSerieux and !relance){
@@ -3968,10 +3984,13 @@ entities {
 			bool tete <- false;
 			int type <- 0;
 			//ce comportement se joue énormément au pré flop
+			ask world {
+				infoEvaluation <- self evaluer_main[joueur_actuel:: (joueurs index_of (myself))];
+			}
 			do meilleure_combinaison;
 			if(etape = 0){
 				//SI ON A UNE PAIRE SERVIE =D
-				if( type_meilleure_combinaison = 1) {
+				if( infoEvaluation[0] = 1) {
 					//S'il y a eu une relance, on regarde de qui elle vient et de ce qu'on sait de ce joueur
 					if(miseGlobale - self.mise >= blind){
 						//Si le joueur à l'origine de la relance est considéré comme sérieux, il a surement une belle main !
@@ -4112,21 +4131,14 @@ entities {
 				self.miseCourante <- 0;
 				do meilleure_combinaison;
 				//Si on a au moins une paire on reste
-				if( type_meilleure_combinaison >= 1){
+				if( infoEvaluation[0] >= 1){
 					//S'il y a déjà eu des mises ATTENTION
 					if(miseGlobale - self.mise > 0){
 						//On reste uniquement si on a mieux qu'une paire OU qu'il n'y a déjà plus de joueurs "sérieux"
-						if( type_meilleure_combinaison > 1 and presenceSerieux() = 0){
-							if(type_meilleure_combinaison > 2 ){
+						if( infoEvaluation[0] > 1 and presenceSerieux() = 0){
+							if(infoEvaluation[0] > 2 ){
 								do miser valeur : argent;
 								self.logJoueur[5] <- self.logJoueur[5] + 1; 
-								ask world {
-                					//do pause;
-                					//write "-*-*-*-*-on tente le TAPIS-*-*-*-*-";                													
-            					}
-            					loop j over : joueurs{
-									//write "" + j + " type " + typeJoueur(j) + " pS " + presenceSerieux();	
-								}
 								self.tapis <- true;	
 							}
 							else{							
@@ -4142,9 +4154,11 @@ entities {
 					//S'il n'y a pas eu encore de mise
 					else{
 						//Mise si mieux qu'une paire ou aucun joueur "sérieux"
-						if(type_meilleure_combinaison > 1 or presenceSerieux() = 0){
+						if(infoEvaluation[0] > 1 or presenceSerieux() = 0){
 							//write "on mise car mieux qu'une paire";
+							write "meilleure combinaison " + type_meilleure_combinaison + " - " + infoEvaluation[0] + " serieux ? " + presenceSerieux() ;
 							do miser valeur : 3*blind;
+							 
 						}
 						//Check sinon
 						else{
@@ -4196,10 +4210,6 @@ entities {
 					bonJoueur[j] <- bonJoueur[j] +1;
 				}	
 			}
-			/*if(nombreTour mod 50 = 0){
-				write "\t" + suiveurs;
-				write "\t" + bluffers;
-			}*/
 			lesStats2 <- false;				
 		}	
 		/**
@@ -4218,7 +4228,6 @@ entities {
 			//write "s" + suiveurs[j] +  "b " + bluffers[j] + " bj " + bonJoueur[j];
 			//Si on considère qu'on en sait pas assez, on dit qu'on a pas d'infos : idée de réalisme, on ne juge pas qu'un joueur est clairement un bluffeur sur un seul bluff
 			if (nombreInfos < 3){
-				//write "-1";
 				return -1;
 			}
 			if(j = self){
@@ -4227,17 +4236,14 @@ entities {
 			else{
 				//joueur majoritairement suiveur
 				if(suiveurs[j] > bluffers[j] and suiveurs[j] > bonJoueur[j]){
-					//write "0";
 					return 0;
 				}
 				//joueur majoritairement bluffeur
 				else if (suiveurs[j] < bluffers[j] and bluffers[j] > bonJoueur[j]){
-					//write "1";
 					return 1;
 				}
 				//joueur majoritairement sérieux
 				else{
-					//write "2";
 					return 2;
 				}
 			}
@@ -4262,8 +4268,6 @@ entities {
 				}				
 			} 
 			if(pasDeSerieux){
-				//write "pas de sérieux LES GARS---------------";
-				//write "" + bonJoueur;
 				return 0;
 			}
 			else if(!pasDeSerieux and !relance){
@@ -4306,7 +4310,6 @@ entities {
 			//voici ce qui change par rapport à l'agent Apprentissage précédent !
 			ask world {
 				infoEvaluation <- self evaluer_main[joueur_actuel:: (joueurs index_of (myself))];
-				//write infos;
 			}
 			if(etape = 0){
 				paireServie <- false;
@@ -4442,9 +4445,6 @@ entities {
 			}
 			//post flop
 			if(etape > 0){
-				loop j over: joueurs{
-					write "Serieux ? " + typeJoueur(j);
-				}
 				self.miseCourante <- 0;
 				do meilleure_combinaison;
 				//Si on a au moins une paire on reste
@@ -4488,7 +4488,6 @@ entities {
 						else{
 							//si on a une excellente main ET qu'elle est constituée quand même par une de nos cartes on relance -> maximiser profit
 							if((infoEvaluation[0] > 2 and infoEvaluation[1] = 2) or (infoEvaluation[0] > 3 and infoEvaluation[1] >= 1)){
-								//write "~~~~~~~~~~~~~~~~~~~~~~~~~excellente main et présence joueurs sérieux";
 								if(( miseGlobale -self.mise ) *2 < argent){
 									do miser valeur : ( miseGlobale -self.mise ) *2;								
 								}
