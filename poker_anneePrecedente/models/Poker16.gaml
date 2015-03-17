@@ -10,7 +10,7 @@ global {
 	/**
 	 * Nombre de parties
 	 */
-	int nb_parties <- 30 min : 1 max : 100;
+	int nb_parties <- 1 min : 1 max : 100;
 	int compteur_parties <- 0;
 	int compteur_tours <- 0;
 	list<Joueur> tmp <- [];
@@ -339,35 +339,7 @@ global {
 		(vainqueur).logJoueur[3] <- vainqueur.logJoueur[3] +1;
 		compteur_parties <- compteur_parties +1;		
 		
-		//do tell message: messaget;
-		
-		// On log les r�sultats de la simulation
-		/*list<int> log  <- [nb_joueurs, argent_init, blind, max_raises, limite_temps];
-		let nom_log type : string <- "log";
-		
-		// On log les parts des diff�rents agents
-		loop pair over : partsAgents.values {
-			add pair to : log;
-		}
-		
-		// Puis l'esp�ce du vainqueur
-		if(species_of(vainqueur) = JoueurZISuiveur) {
-			add 1 to : log;
-		}
-		else if(species_of(vainqueur) = JoueurZIAleatoire) {
-			add 2 to : log;
-		}
-		else if(species_of(vainqueur) = JoueurPrudent) {
-			add 3 to : log;
-		}
-		else if(species_of(vainqueur) = JoueurBluffer) {
-			add 4 to : log;
-		}
-		else {
-			add -1 to : log;
-		}
-		
-		save log to: nom_log + ".csv" type: "csv";*/
+		//Rappel logJoueur renvoi une liste avec :
 		/* 0 -> nombre de tours remportés par le joueur
 		 * 1 -> nombre de bluffs
 		 * 2 -> nombre de suivis douteux
@@ -411,51 +383,7 @@ global {
 			(joueurs at index).logJoueur[4] <- (joueurs at index).logJoueur[4] +1; 
 			set index <- index + 1;
 		}
-		//set messaget <- messaget + string(joueurs at index) + " sont � �galit� !";
-		 
-		//do tell message: messaget;
 		
-		// On log les r�sultats de la simulation
-		/*list<int> log <- [nb_joueurs, argent_init, blind, max_raises, limite_temps];
-		let nom_log type : string <- "log";
-		
-		// On log les parts des diff�rents agents
-		loop pairt over : partsAgents.values {
-			add pairt to: log;
-		}
-
-		// Dans un premier temps, on ajoute -1 pour signifier le fait qu'on ait une �galit�
-		add -1 to : log;
-		
-		// On log les joueurs � �galit� avec leur argent, dans l'ordre
-		let listOrd type : list of : Joueur <- copy(joueurs);
-		set listOrd <- listOrd sort_by each.argent;
-		
-		set index <- length(listOrd) - 1;
-		loop while : index >= 0 {
-			let joueur type : Joueur <- listOrd at index;
-			if(species_of(joueur) = JoueurZISuiveur) {
-				add 1 to : log;
-			}
-			else if(species_of(joueur) = JoueurZIAleatoire) {
-				add 2 to : log;
-			}
-			else if(species_of(joueur) = JoueurPrudent) {
-				add 3 to : log;
-			}
-			else if(species_of(joueur) = JoueurBluffer) {
-				add 4 to : log;
-			}
-			else {
-				add -1 to : log;
-			}
-			add joueur.argent to : log;
-			set index <- index - 1;
-		}
-		
-		save log to: (nom_log + ".csv") type: "csv";
-		
-		do halt;*/
 		if(nb_parties = compteur_parties){		
 			time <- 0;	
 			write "-*-*-*-*-*-*-END-*-*-*-*-*-*-";
@@ -2950,19 +2878,7 @@ entities {
 			}
 			
 			// On affiche le text correspondant � son statut, son argent et sa mise
-			/*if(dealer) {
-				if(small_blind) {
-					// A deux joueurs
-					draw "Small blind" color : rgb("white") size : 10 at : my location - {0, 45};
-				}
-				draw "Dealer" color : rgb("white") size : 10 at : my location - {0, 35};
-			}
-			else if(small_blind) {
-				draw "Small blind" color : rgb("white") size : 10 at : my location - {0, 35};
-			}
-			else if(big_blind) {
-				draw "Big blind" color : rgb("white") size : 10 at : my location - {0, 35};
-			}*/
+			
 			draw  "Argent : " + string(argent) color : rgb("white") size : 10 at : my location - {0, 65};
 			draw  "Mise : " + string(mise) color : rgb("white") size : 10 at : my location - {0, 55};
 			draw  "MiseCourante : " + string(miseCourante) color : rgb("yellow") size : 10 at : my location - {0, 45};
@@ -4156,7 +4072,7 @@ entities {
 						//Mise si mieux qu'une paire ou aucun joueur "sérieux"
 						if(infoEvaluation[0] > 1 or presenceSerieux() = 0){
 							//write "on mise car mieux qu'une paire";
-							write "meilleure combinaison " + type_meilleure_combinaison + " - " + infoEvaluation[0] + " serieux ? " + presenceSerieux() ;
+							//write "meilleure combinaison " + type_meilleure_combinaison + " - " + infoEvaluation[0] + " serieux ? " + presenceSerieux() ;
 							do miser valeur : 3*blind;
 							 
 						}
